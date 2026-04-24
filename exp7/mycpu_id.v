@@ -110,6 +110,11 @@ wire        need_si20;
 wire        need_si26;
 wire        src2_is_4;
 
+wire [ 4:0] rf_raddr1;
+wire [ 4:0] rf_raddr2;
+wire [31:0] rf_rdata1;
+wire [31:0] rf_rdata2;
+
 assign op_31_26  = reg_inst[31:26];
 assign op_25_22  = reg_inst[25:22];
 assign op_21_20  = reg_inst[21:20];

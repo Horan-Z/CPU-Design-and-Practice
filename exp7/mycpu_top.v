@@ -170,6 +170,14 @@ mycpu_wb u_wb(
     .wb_allowin_o        (wb_allowin            )
 );
 
+wire [31:0] rf_raddr1;
+wire [31:0] rf_raddr2;
+wire [31:0] rf_rdata1;
+wire [31:0] rf_rdata2;
+wire        rf_we;
+wire [31:0] rf_waddr;
+wire [31:0] rf_wdata;
+
 regfile u_regfile(
     .clk    (clk      ),
     .raddr1 (rf_raddr1),

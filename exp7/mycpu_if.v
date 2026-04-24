@@ -34,7 +34,7 @@ always @(posedge clk_i) begin
 end
 
 assign inst_sram_en_o   = ~reset_i;
-assign inst_sram_addr_o = pc;
+assign inst_sram_addr_o = nextpc;
 assign inst_o           = inst_sram_rdata_i;
 assign pc_o             = pc;
 
