@@ -2,12 +2,14 @@ module mycpu_top(
     input  wire        clk,
     input  wire        resetn,
     // inst sram interface
-    output wire        inst_sram_we,
+    output wire        inst_sram_en,
+    output wire [ 3:0] inst_sram_we,
     output wire [31:0] inst_sram_addr,
     output wire [31:0] inst_sram_wdata,
     input  wire [31:0] inst_sram_rdata,
     // data sram interface
-    output wire        data_sram_we,
+    output wire        data_sram_en,
+    output wire [ 3:0] data_sram_we,
     output wire [31:0] data_sram_addr,
     output wire [31:0] data_sram_wdata,
     input  wire [31:0] data_sram_rdata,
@@ -17,18 +19,9 @@ module mycpu_top(
     output wire [ 4:0] debug_wb_rf_wnum,
     output wire [31:0] debug_wb_rf_wdata
 );
+
 reg         reset;
 always @(posedge clk) reset <= ~resetn;
-
-reg         valid;
-always @(posedge clk) begin
-    if (reset) begin
-        valid <= 1'b0;
-    end
-    else begin
-        valid <= 1'b1;
-    end
-end
 
 wire [31:0] seq_pc;
 wire [31:0] nextpc;
@@ -222,16 +215,6 @@ assign dest          = dst_is_r1 ? 5'd1 : rd;
 
 assign rf_raddr1 = rj;
 assign rf_raddr2 = src_reg_is_rd ? rd :rk;
-regfile u_regfile(
-    .clk    (clk      ),
-    .raddr1 (rf_raddr1),
-    .rdata1 (rf_rdata1),
-    .raddr2 (rf_raddr2),
-    .rdata2 (rf_rdata2),
-    .we     (rf_we    ),
-    .waddr  (rf_waddr ),
-    .wdata  (rf_wdata )
-    );
 
 assign rj_value  = rf_rdata1;
 assign rkd_value = rf_rdata2;
@@ -249,30 +232,72 @@ assign br_target = (inst_beq || inst_bne || inst_bl || inst_b) ? (pc + br_offs) 
 assign alu_src1 = src1_is_pc  ? pc[31:0] : rj_value;
 assign alu_src2 = src2_is_imm ? imm : rkd_value;
 
+mycpu_mem u_mem(
+    .clk_i             (clk                   ),
+    .reset_i           (reset                 ),
+    .pc_i              (ex_to_mem_pc          ),
+    .gr_we_i           (ex_to_mem_gr_we       ),
+    .res_from_mem_i    (ex_to_mem_res_from_mem),
+    .alu_result_i      (ex_to_mem_alu_result  ),
+    .dest_i            (ex_to_mem_dest        ),
+    .data_sram_rdata_i (data_sram_rdata       ),
+    .pc_o              (mem_to_wb_pc          ),
+    .gr_we_o           (mem_to_wb_gr_we       ),
+    .res_from_mem_o    (mem_to_wb_res_from_mem),
+    .alu_result_o      (mem_to_wb_alu_result  ),
+    .dest_o            (mem_to_wb_dest        ),
+    .mem_result_o      (mem_result            ),
+    .valid_i           (ex_to_mem_valid       ),
+    .wb_allowin_i      (wb_allowin            ),
+    .mem_allowin_o     (mem_allowin           ),
+    .mem_to_wb_valid_o (mem_to_wb_valid       )
+);
+
+wire [31:0] mem_to_wb_pc;
+wire        mem_to_wb_gr_we;
+wire        mem_to_wb_res_from_mem;
+wire [31:0] mem_to_wb_alu_result;
+wire [ 4:0] mem_to_wb_dest;
+wire [31:0] mem_result;
+wire        wb_allowin;
+wire        mem_to_wb_valid;
+
+mycpu_wb u_wb(
+    .clk_i               (clk                   ),
+    .reset_i             (reset                 ),
+    .pc_i                (mem_to_wb_pc          ),
+    .valid_i             (mem_to_wb_valid       ),
+    .gr_we_i             (mem_to_wb_gr_we       ),
+    .res_from_mem_i      (mem_to_wb_res_from_mem),
+    .mem_result_i        (mem_result            ),
+    .alu_result_i        (mem_to_wb_alu_result  ),
+    .dest_i              (mem_to_wb_dest        ),
+    .rf_we_o             (rf_we                 ),
+    .rf_waddr_o          (rf_waddr              ),
+    .rf_wdata_o          (rf_wdata              ),
+    .debug_wb_pc_o       (debug_wb_pc           ),
+    .debug_wb_rf_we_o    (debug_wb_rf_we        ),
+    .debug_wb_rf_wnum_o  (debug_wb_rf_wnum      ),
+    .debug_wb_rf_wdata_o (debug_wb_rf_wdata     ),
+    .wb_allowin_o        (wb_allowin            )
+);
+
+regfile u_regfile(
+    .clk    (clk      ),
+    .raddr1 (rf_raddr1),
+    .rdata1 (rf_rdata1),
+    .raddr2 (rf_raddr2),
+    .rdata2 (rf_rdata2),
+    .we     (rf_we    ),
+    .waddr  (rf_waddr ),
+    .wdata  (rf_wdata )
+);
+
 alu u_alu(
     .alu_op     (alu_op    ),
-    // .alu_src1   (alu_src2  ),
     .alu_src1   (alu_src1  ),
     .alu_src2   (alu_src2  ),
     .alu_result (alu_result)
-    );
-
-assign data_sram_we    = mem_we && valid;
-assign data_sram_addr  = alu_result;
-assign data_sram_wdata = rkd_value;
-
-assign mem_result   = data_sram_rdata;
-assign final_result = res_from_mem ? mem_result : alu_result;
-
-assign rf_we    = gr_we && valid;
-assign rf_waddr = dest;
-assign rf_wdata = final_result;
-
-// debug info generate
-assign debug_wb_pc       = pc;
-// assign debug_wb_rf_wen   = {4{rf_we}};
-assign debug_wb_rf_we   = {4{rf_we}};
-assign debug_wb_rf_wnum  = dest;
-assign debug_wb_rf_wdata = final_result;
+);
 
 endmodule
