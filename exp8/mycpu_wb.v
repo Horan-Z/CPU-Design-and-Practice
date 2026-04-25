@@ -14,6 +14,7 @@ module mycpu_wb(
     output wire        rf_we_o,
     output wire [ 4:0] rf_waddr_o,
     output wire [31:0] rf_wdata_o,
+    output wire [ 4:0] dest_o,
 
     output wire [31:0] debug_wb_pc_o,
     output wire [ 3:0] debug_wb_rf_we_o,
@@ -58,6 +59,7 @@ end
 assign rf_we_o    = reg_gr_we && reg_valid;
 assign rf_waddr_o = reg_dest;
 assign rf_wdata_o = reg_res_from_mem ? reg_mem_result : reg_alu_result;
+assign dest_o     = reg_valid ? reg_dest : 5'd0;
 
 assign debug_wb_pc_o       = reg_pc;
 assign debug_wb_rf_we_o    = {4{rf_we_o}};

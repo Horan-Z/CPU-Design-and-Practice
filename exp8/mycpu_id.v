@@ -22,14 +22,37 @@ module mycpu_id(
 
     output wire        br_taken_o,
     output wire [31:0] br_target_o,
+    output wire        br_taken_cancel_o,
 
     output wire [ 4:0] rf_raddr1_o,
     input  wire [31:0] rf_rdata1_i,
     output wire [ 4:0] rf_raddr2_o,
-    input  wire [31:0] rf_rdata2_i
+    input  wire [31:0] rf_rdata2_i,
+
+    input  wire [ 4:0] ex_dest_i,
+    input  wire [ 4:0] mem_dest_i,
+    input  wire [ 4:0] wb_dest_i
 );
 
-wire       id_ready_go = 1'b1;
+wire       id_ready_go;
+wire       read_en_1; // 读rj的此处为true
+wire       read_en_2; // 读rk或者rd的此处为true
+
+assign     read_en_1   = inst_add_w  | inst_sub_w  | inst_slt    | inst_sltu   |
+                         inst_nor    | inst_and    | inst_or     | inst_xor    |
+                         inst_slli_w | inst_srli_w | inst_srai_w | inst_addi_w |
+                         inst_ld_w   | inst_st_w   | inst_jirl   |
+                         inst_bne    | inst_beq    ;
+
+assign     read_en_2   = inst_add_w  | inst_sub_w  | inst_slt    | inst_sltu   |
+                         inst_nor    | inst_and    | inst_or     | inst_xor    |
+                         inst_st_w   |
+                         inst_bne    | inst_beq    ;
+
+assign     id_ready_go = ~( 
+    (read_en_1 && (rf_raddr1 != 5'd0) && ((rf_raddr1 == ex_dest_i) || (rf_raddr1 == mem_dest_i) || (rf_raddr1 == wb_dest_i))) |
+    (read_en_2 && (rf_raddr2 != 5'd0) && ((rf_raddr2 == ex_dest_i) || (rf_raddr2 == mem_dest_i) || (rf_raddr2 == wb_dest_i)))
+);
 
 reg [31:0] reg_pc;
 reg [31:0] reg_inst;
@@ -38,7 +61,7 @@ reg        reg_valid;
 always @(posedge clk_i) begin
     if (reset_i) begin
         reg_valid <= 1'b0;
-    end else if(br_taken) begin
+    end else if(br_taken_cancel_o) begin
         reg_valid <= 1'b0;
     end else if(id_allowin_o) begin
         reg_valid <= valid_i;
@@ -54,6 +77,8 @@ end
 
 wire        br_taken;
 wire [31:0] br_target;
+
+assign br_taken_cancel_o = br_taken & id_to_ex_valid_o & ex_allowin_i;
 
 wire [11:0] alu_op;
 wire        load_op;
@@ -199,10 +224,14 @@ assign src2_is_imm   = inst_slli_w |
 
 assign res_from_mem_o = inst_ld_w;
 assign dst_is_r1      = inst_bl;
-assign gr_we_o        = ~inst_st_w & ~inst_beq & ~inst_bne & ~inst_b;
-assign mem_we_o       = {4{inst_st_w}};
-assign mem_en_o       = inst_st_w | inst_ld_w;
-assign dest_o         = dst_is_r1 ? 5'd1 : rd;
+assign gr_we_o        = (~inst_st_w & ~inst_beq & ~inst_bne & ~inst_b) & reg_valid;
+assign mem_we_o       = {4{inst_st_w}} & {4{reg_valid}};;
+assign mem_en_o       = (inst_st_w | inst_ld_w) & reg_valid;
+// 提前处理dest
+// 如果不需要写入，将dest设置为0号寄存器
+// 因为0号寄存器不可能写入，相当于标记了不需要写入
+// 省下了gr_we信号回传
+assign dest_o         = gr_we_o ? (dst_is_r1 ? 5'd1 : rd) : 5'd0;
 assign pc_o           = reg_pc;
 
 assign rf_raddr1 = rj;
@@ -217,7 +246,7 @@ assign br_taken = (   inst_beq  &&  rj_eq_rd
                    || inst_jirl
                    || inst_bl
                    || inst_b
-                  ) && reg_valid;
+                  ) && id_to_ex_valid_o;
 assign br_target = (inst_beq || inst_bne || inst_bl || inst_b) ? (reg_pc + br_offs) :
                                                    /*inst_jirl*/ (rj_value + jirl_offs);
 
@@ -228,9 +257,9 @@ assign alu_op_o   = alu_op;
 assign rkd_value_o = rkd_value;
 assign br_taken_o  = br_taken;
 assign br_target_o = br_target;
-assign rf_raddr1_o = rf_raddr1;
+assign rf_raddr1_o = rf_raddr1; // rj
 assign rf_rdata1   = rf_rdata1_i;
-assign rf_raddr2_o = rf_raddr2;
+assign rf_raddr2_o = rf_raddr2; // rk 或者 rd
 assign rf_rdata2   = rf_rdata2_i;
 
 assign id_allowin_o = !reg_valid || (id_ready_go && ex_allowin_i);

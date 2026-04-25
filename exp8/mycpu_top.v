@@ -45,6 +45,7 @@ mycpu_if u_if(
     .id_allowin_i      (id_allowin        ),
     .valid_i           (pre_to_if_valid   ),
     .pc_i              (pre_to_if_pc      ),
+    .br_taken_cancel_i (br_taken_cancel   ),
     .if_to_id_valid_o  (if_to_id_valid    ),
     .if_allowin_o      (if_allowin        ),
     .inst_sram_rdata_i (inst_sram_rdata   ),
@@ -56,6 +57,7 @@ wire [31:0] if_to_id_pc;
 wire [31:0] if_to_id_inst;
 wire        br_taken;
 wire [31:0] br_target;
+wire        br_taken_cancel;
 wire        if_to_id_valid;
 wire        id_allowin;
 
@@ -80,10 +82,14 @@ mycpu_id u_id(
     .rkd_value_o      (id_to_ex_rkd_value   ),
     .br_taken_o       (br_taken             ),
     .br_target_o      (br_target            ),
+    .br_taken_cancel_o(br_taken_cancel      ),
     .rf_raddr1_o      (rf_raddr1            ),
     .rf_rdata1_i      (rf_rdata1            ),
     .rf_raddr2_o      (rf_raddr2            ),
-    .rf_rdata2_i      (rf_rdata2            )
+    .rf_rdata2_i      (rf_rdata2            ),
+    .ex_dest_i        (ex_to_mem_dest       ),
+    .mem_dest_i       (mem_to_wb_dest       ),
+    .wb_dest_i        (wb_dest              )
 );
 
 wire [31:0] id_to_ex_pc;
@@ -164,6 +170,7 @@ wire [ 4:0] mem_to_wb_dest;
 wire [31:0] mem_result;
 wire        wb_allowin;
 wire        mem_to_wb_valid;
+wire [ 4:0] wb_dest;
 
 mycpu_wb u_wb(
     .clk_i               (clk                   ),
@@ -178,6 +185,7 @@ mycpu_wb u_wb(
     .rf_we_o             (rf_we                 ),
     .rf_waddr_o          (rf_waddr              ),
     .rf_wdata_o          (rf_wdata              ),
+    .dest_o              (wb_dest               ),
     .debug_wb_pc_o       (debug_wb_pc           ),
     .debug_wb_rf_we_o    (debug_wb_rf_we        ),
     .debug_wb_rf_wnum_o  (debug_wb_rf_wnum      ),

@@ -4,6 +4,7 @@ module mycpu_if(
     input  wire        id_allowin_i,
     input  wire        valid_i,
     input  wire [31:0] pc_i,
+    input  wire        br_taken_cancel_i,
     output wire        if_to_id_valid_o,
     output wire        if_allowin_o,
 
@@ -14,7 +15,6 @@ module mycpu_if(
 );
 
 wire        if_ready_go = 1'b1;
-wire        if_allowin;
 reg         reg_valid;
 reg  [31:0] reg_pc; 
 reg  [31:0] reg_inst;
@@ -26,7 +26,7 @@ always @(posedge clk_i) begin
         reg_valid <= valid_i;
         reg_pc    <= pc_i;
         reg_inst  <= inst_sram_rdata_i;
-    end else if(br_taken) begin
+    end else if(br_taken_cancel_i) begin
         reg_valid <= 1'b0;
     end
 end
