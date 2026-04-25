@@ -23,15 +23,30 @@ module mycpu_top(
 reg         reset;
 always @(posedge clk) reset <= ~resetn;
 
+mycpu_preif u_preif(
+    .clk_i             (clk               ),
+    .reset_i           (reset             ),
+    .if_allowin_i      (if_allowin        ),
+    .pre_to_if_valid_o (pre_to_if_valid   ),
+    .br_taken_i        (br_taken          ),
+    .br_target_i       (br_target         ),
+    .inst_sram_en_o    (inst_sram_en      ),
+    .inst_sram_addr_o  (inst_sram_addr    ),
+    .pc_o              (pre_to_if_pc      )
+);
+
+wire        if_allowin;
+wire        pre_to_if_valid;
+wire [31:0] pre_to_if_pc;
+
 mycpu_if u_if(
     .clk_i             (clk               ),
     .reset_i           (reset             ),
     .id_allowin_i      (id_allowin        ),
+    .valid_i           (pre_to_if_valid   ),
+    .pc_i              (pre_to_if_pc      ),
     .if_to_id_valid_o  (if_to_id_valid    ),
-    .br_taken_i        (id_to_if_br_taken ),
-    .br_target_i       (id_to_if_br_target),
-    .inst_sram_en_o    (inst_sram_en      ),
-    .inst_sram_addr_o  (inst_sram_addr    ),
+    .if_allowin_o      (if_allowin        ),
     .inst_sram_rdata_i (inst_sram_rdata   ),
     .inst_o            (if_to_id_inst     ),
     .pc_o              (if_to_id_pc       )
@@ -39,8 +54,8 @@ mycpu_if u_if(
 
 wire [31:0] if_to_id_pc;
 wire [31:0] if_to_id_inst;
-wire        id_to_if_br_taken;
-wire [31:0] id_to_if_br_target;
+wire        br_taken;
+wire [31:0] br_target;
 wire        if_to_id_valid;
 wire        id_allowin;
 
@@ -63,8 +78,8 @@ mycpu_id u_id(
     .mem_en_o         (id_to_ex_mem_en      ),
     .mem_we_o         (id_to_ex_mem_we      ),
     .rkd_value_o      (id_to_ex_rkd_value   ),
-    .br_taken_o       (id_to_if_br_taken    ),
-    .br_target_o      (id_to_if_br_target   ),
+    .br_taken_o       (br_taken             ),
+    .br_target_o      (br_target            ),
     .rf_raddr1_o      (rf_raddr1            ),
     .rf_rdata1_i      (rf_rdata1            ),
     .rf_raddr2_o      (rf_raddr2            ),

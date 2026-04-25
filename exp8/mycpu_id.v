@@ -38,6 +38,8 @@ reg        reg_valid;
 always @(posedge clk_i) begin
     if (reset_i) begin
         reg_valid <= 1'b0;
+    end else if(br_taken) begin
+        reg_valid <= 1'b0;
     end else if(id_allowin_o) begin
         reg_valid <= valid_i;
     end
