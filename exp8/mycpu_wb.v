@@ -59,6 +59,7 @@ end
 assign rf_we_o    = reg_gr_we && reg_valid;
 assign rf_waddr_o = reg_dest;
 assign rf_wdata_o = reg_res_from_mem ? reg_mem_result : reg_alu_result;
+// 如果不是valid，就释放dest，防止死锁
 assign dest_o     = reg_valid ? reg_dest : 5'd0;
 
 assign debug_wb_pc_o       = reg_pc;

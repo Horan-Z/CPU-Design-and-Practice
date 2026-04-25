@@ -20,6 +20,8 @@ wire [31:0] seq_pc;
 wire [31:0] nextpc;
 
 assign seq_pc       = pc + 32'h4;
+// 如果br_taken，则当然要变为br_target
+// 如果没有br_taken，且if阶段阻塞中，那么需要保持当前pc，跟着if一起阻塞
 assign nextpc = br_taken_i ? br_target_i : (if_allowin_i ? seq_pc : pc);
 
 always @(posedge clk_i) begin
@@ -34,6 +36,8 @@ assign inst_sram_en_o   = ~reset_i;
 assign inst_sram_addr_o = nextpc;
 assign pc_o             = pc;
 
+// 确认跳转的当前周期的pc还是上一周期的nextpc，即seq_pc
+// 需等一周期pc才会变成br_target_i
 assign pre_to_if_valid_o = pre_ready_go & !br_taken_i;
 
 endmodule

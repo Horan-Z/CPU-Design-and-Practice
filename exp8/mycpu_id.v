@@ -62,6 +62,8 @@ always @(posedge clk_i) begin
     if (reset_i) begin
         reg_valid <= 1'b0;
     end else if(br_taken_cancel_o) begin
+        // 这里的意思是清空下一次到来的数据，而不是清空现在的数据
+        // 所以br_taken_cancel_o只有在当前周期数据成功发送到下一级流水的时候才可以为true
         reg_valid <= 1'b0;
     end else if(id_allowin_o) begin
         reg_valid <= valid_i;
@@ -78,6 +80,9 @@ end
 wire        br_taken;
 wire [31:0] br_target;
 
+// br_taken_cancel_o必须在当前id数据传入下一层ex的时候才能为true
+// 如果因为任何原因，当前id处于阻塞中，那么br_taken_cancel_o不能为true
+// 否则，上方时序逻辑中的【else if(br_taken_cancel_o)】会触发，直接清空id层级
 assign br_taken_cancel_o = br_taken & id_to_ex_valid_o & ex_allowin_i;
 
 wire [11:0] alu_op;
@@ -247,6 +252,13 @@ assign br_taken = (   inst_beq  &&  rj_eq_rd
                    || inst_bl
                    || inst_b
                   ) && id_to_ex_valid_o;
+// br_taken最后的条件从reg_valid改为了id_to_ex_valid_o
+// 因为当后方流水还没完成写入，还处于Read after Write竞争中时
+// rj_eq_rd是不准确的，如果不判定id_ready_go，就会导致前面流水收到错误的br_taken信息
+// 那么为什么不直接【id_to_ex_valid_o && ex_allowin_i】，然后让br_taken_cancel直接等于br_taken呢
+// 因为这样br_taken可以在阻塞的时候先于br_taken_cancel变为true，让前面流水提前拿到正确的pc
+// 节省一些cpu cycle
+
 assign br_target = (inst_beq || inst_bne || inst_bl || inst_b) ? (reg_pc + br_offs) :
                                                    /*inst_jirl*/ (rj_value + jirl_offs);
 

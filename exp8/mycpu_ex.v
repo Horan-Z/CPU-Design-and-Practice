@@ -73,6 +73,7 @@ end
 assign pc_o           = reg_pc;
 assign gr_we_o        = reg_gr_we;
 assign res_from_mem_o = reg_res_from_mem;
+// 如果不是valid，就释放dest，防止死锁
 assign dest_o         = reg_valid ? reg_dest : 5'd0;
 
 assign ex_allowin_o = !reg_valid || (ex_ready_go && mem_allowin_i);
