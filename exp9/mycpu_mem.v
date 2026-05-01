@@ -11,10 +11,8 @@ module mycpu_mem(
 
     output wire [31:0] pc_o,
     output wire        gr_we_o,
-    output wire        res_from_mem_o,
-    output wire [31:0] alu_result_o,
+    output wire [31:0] write_result_o,
     output wire [ 4:0] dest_o,
-    output wire [31:0] mem_result_o,
 
     input  wire        valid_i,
     input  wire        wb_allowin_i,
@@ -53,15 +51,14 @@ end
 // 实际上，还需要通过mem_allowin对上一级ex流水线进行控制
 // 具体表现为如果后面流水阻塞，需要通过控制信号保证对sram的操作仅执行一次
 // 对sram的操作应发生在ex_to_mem_valid拉高的那一个时刻，即ex流水转向mem流水的时刻
-assign mem_result_o   = data_sram_rdata_i;
+assign write_result_o = reg_res_from_mem ? data_sram_rdata_i : reg_alu_result;
 
 // 中转信号
 assign pc_o           = reg_pc;
 assign gr_we_o        = reg_gr_we;
-assign res_from_mem_o = reg_res_from_mem;
-assign alu_result_o   = reg_alu_result;
+
 // 如果不是valid，就释放dest，防止死锁
-assign dest_o         = reg_valid ? reg_dest : 5'd0;
+assign dest_o         = reg_valid && reg_gr_we ? reg_dest : 5'd0;
 
 assign mem_allowin_o = !reg_valid || (mem_ready_go && wb_allowin_i);
 assign mem_to_wb_valid_o = reg_valid && mem_ready_go;

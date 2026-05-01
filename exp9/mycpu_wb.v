@@ -6,9 +6,7 @@ module mycpu_wb(
     input  wire        valid_i,
 
     input  wire        gr_we_i,
-    input  wire        res_from_mem_i,
-    input  wire [31:0] mem_result_i,
-    input  wire [31:0] alu_result_i,
+    input  wire [31:0] write_result_i,
     input  wire [ 4:0] dest_i,
 
     output wire        rf_we_o,
@@ -29,9 +27,7 @@ wire       wb_ready_go = 1'b1;
 reg [31:0] reg_pc;
 reg        reg_valid;
 reg        reg_gr_we;
-reg        reg_res_from_mem;
-reg [31:0] reg_mem_result;
-reg [31:0] reg_alu_result;
+reg [31:0] reg_write_result;
 reg [ 4:0] reg_dest;
 
 always @(posedge clk_i) begin
@@ -49,18 +45,16 @@ always @(posedge clk_i) begin
     if(wb_allowin_o && valid_i) begin
         reg_pc           <= pc_i;
         reg_gr_we        <= gr_we_i;
-        reg_res_from_mem <= res_from_mem_i;
-        reg_mem_result   <= mem_result_i;
-        reg_alu_result   <= alu_result_i;
+        reg_write_result <= write_result_i;
         reg_dest         <= dest_i;
     end
 end
 
 assign rf_we_o    = reg_gr_we && reg_valid;
 assign rf_waddr_o = reg_dest;
-assign rf_wdata_o = reg_res_from_mem ? reg_mem_result : reg_alu_result;
+assign rf_wdata_o = reg_write_result;
 // 如果不是valid，就释放dest，防止死锁
-assign dest_o     = reg_valid ? reg_dest : 5'd0;
+assign dest_o     = reg_valid && reg_gr_we ? reg_dest : 5'd0;
 
 assign debug_wb_pc_o       = reg_pc;
 assign debug_wb_rf_we_o    = {4{rf_we_o}};

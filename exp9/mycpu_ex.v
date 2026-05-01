@@ -12,6 +12,7 @@ module mycpu_ex(
     input  wire        mem_en_i,
     input  wire [ 3:0] mem_we_i,
     input  wire [31:0] rkd_value_i,
+    input  wire        ex_not_ready_i,
 
     output wire [31:0] pc_o,
     output wire        gr_we_o,
@@ -27,7 +28,8 @@ module mycpu_ex(
     output wire        data_sram_en_o,
     output wire [ 3:0] data_sram_we_o,
     output wire [31:0] data_sram_addr_o,
-    output wire [31:0] data_sram_wdata_o
+    output wire [31:0] data_sram_wdata_o,
+    output wire        ex_not_ready_o
 );
 
 wire       ex_ready_go = 1'b1;
@@ -45,6 +47,7 @@ reg [31:0] reg_alu_src2;
 reg        reg_mem_en;
 reg [ 3:0] reg_mem_we;
 reg [31:0] reg_rkd_value;
+reg        reg_ex_not_ready;
 
 always @(posedge clk_i) begin
     if (reset_i) begin
@@ -66,6 +69,7 @@ always @(posedge clk_i) begin
         reg_mem_en       <= mem_en_i;
         reg_mem_we       <= mem_we_i;
         reg_rkd_value    <= rkd_value_i;
+        reg_ex_not_ready <= ex_not_ready_i;
     end
 end
 
@@ -74,7 +78,8 @@ assign pc_o           = reg_pc;
 assign gr_we_o        = reg_gr_we;
 assign res_from_mem_o = reg_res_from_mem;
 // 如果不是valid，就释放dest，防止死锁
-assign dest_o         = reg_valid ? reg_dest : 5'd0;
+assign dest_o         = reg_valid && reg_gr_we ? reg_dest : 5'd0;
+assign ex_not_ready_o = reg_ex_not_ready;
 
 assign ex_allowin_o = !reg_valid || (ex_ready_go && mem_allowin_i);
 assign ex_to_mem_valid_o = reg_valid && ex_ready_go;

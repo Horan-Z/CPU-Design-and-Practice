@@ -19,6 +19,7 @@ module mycpu_id(
     output wire        mem_en_o,
     output wire [ 3:0] mem_we_o,
     output wire [31:0] rkd_value_o,
+    output wire        ex_not_ready_o,
 
     output wire        br_taken_o,
     output wire [31:0] br_target_o,
@@ -30,8 +31,12 @@ module mycpu_id(
     input  wire [31:0] rf_rdata2_i,
 
     input  wire [ 4:0] ex_dest_i,
+    input  wire        ex_not_ready_i,
+    input  wire [31:0] ex_write_reg_i,
     input  wire [ 4:0] mem_dest_i,
-    input  wire [ 4:0] wb_dest_i
+    input  wire [31:0] mem_write_reg_i,
+    input  wire [ 4:0] wb_dest_i,
+    input  wire [31:0] wb_write_reg_i
 );
 
 wire       id_ready_go;
@@ -50,8 +55,8 @@ assign     read_en_2   = inst_add_w  | inst_sub_w  | inst_slt    | inst_sltu   |
                          inst_bne    | inst_beq    ;
 
 assign     id_ready_go = ~( 
-    (read_en_1 && (rf_raddr1 != 5'd0) && ((rf_raddr1 == ex_dest_i) || (rf_raddr1 == mem_dest_i) || (rf_raddr1 == wb_dest_i))) |
-    (read_en_2 && (rf_raddr2 != 5'd0) && ((rf_raddr2 == ex_dest_i) || (rf_raddr2 == mem_dest_i) || (rf_raddr2 == wb_dest_i)))
+    (read_en_1 && (rf_raddr1 != 5'd0) && ((rf_raddr1 == ex_dest_i) && ex_not_ready_i)) |
+    (read_en_2 && (rf_raddr2 != 5'd0) && ((rf_raddr2 == ex_dest_i) && ex_not_ready_i))
 );
 
 reg [31:0] reg_pc;
@@ -239,6 +244,8 @@ assign mem_en_o       = (inst_st_w | inst_ld_w) & reg_valid;
 assign dest_o         = gr_we_o ? (dst_is_r1 ? 5'd1 : rd) : 5'd0;
 assign pc_o           = reg_pc;
 
+assign ex_not_ready_o = inst_ld_w;
+
 assign rf_raddr1 = rj;
 assign rf_raddr2 = src_reg_is_rd ? rd :rk;
 
@@ -269,10 +276,20 @@ assign alu_op_o   = alu_op;
 assign rkd_value_o = rkd_value;
 assign br_taken_o  = br_taken;
 assign br_target_o = br_target;
+
 assign rf_raddr1_o = rf_raddr1; // rj
-assign rf_rdata1   = rf_rdata1_i;
+assign rf_rdata1   = rf_raddr1 != 5'd0 && rf_raddr1 ==  ex_dest_i ?  ex_write_reg_i :
+                     rf_raddr1 != 5'd0 && rf_raddr1 == mem_dest_i ? mem_write_reg_i :
+                     rf_raddr1 != 5'd0 && rf_raddr1 ==  wb_dest_i ?  wb_write_reg_i :
+                                                                        rf_rdata1_i ;
+// assign rf_rdata1   = rf_rdata1_i;
+
 assign rf_raddr2_o = rf_raddr2; // rk 或者 rd
-assign rf_rdata2   = rf_rdata2_i;
+assign rf_rdata2   = rf_raddr2 != 5'd0 && rf_raddr2 ==  ex_dest_i ?  ex_write_reg_i :
+                     rf_raddr2 != 5'd0 && rf_raddr2 == mem_dest_i ? mem_write_reg_i :
+                     rf_raddr2 != 5'd0 && rf_raddr2 ==  wb_dest_i ?  wb_write_reg_i :
+                                                                        rf_rdata2_i ;
+// assign rf_rdata2   = rf_rdata2_i;
 
 assign id_allowin_o = !reg_valid || (id_ready_go && ex_allowin_i);
 assign id_to_ex_valid_o = reg_valid && id_ready_go;
