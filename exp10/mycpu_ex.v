@@ -7,7 +7,7 @@ module mycpu_ex(
     input  wire        gr_we_i,
     input  wire        res_from_mem_i,
     input  wire [ 4:0] dest_i,
-    input  wire [14:0] ex_op_i,
+    input  wire [18:0] ex_op_i,
     input  wire [31:0] ex_src1_i,
     input  wire [31:0] ex_src2_i,
     input  wire        mem_en_i,
@@ -39,10 +39,13 @@ module mycpu_ex(
     output wire [31:0] data_sram_wdata_o
 );
 
-wire       ex_ready_go = 1'b1;
+wire ex_ready_go = (reg_div_op != 4'd0) ? (div_done | div_complete) : 1'b1;
 
 wire [31:0] alu_result;
 wire [31:0] mul_result;
+wire [31:0] div_result;
+wire        div_start;
+wire        div_done;
 
 reg [31:0] reg_pc;
 reg        reg_valid;
@@ -51,8 +54,9 @@ reg        reg_res_from_mem;
 reg [ 4:0] reg_dest;
 reg [11:0] reg_alu_op;
 reg [ 2:0] reg_mul_op;
-reg [31:0] reg_alu_src1;
-reg [31:0] reg_alu_src2;
+reg [ 3:0] reg_div_op;
+reg [31:0] reg_cal_src1;
+reg [31:0] reg_cal_src2;
 reg [31:0] reg_mul_src1;
 reg [31:0] reg_mul_src2;
 reg        reg_mem_en;
@@ -76,8 +80,9 @@ always @(posedge clk_i) begin
         reg_dest         <= dest_i;
         reg_alu_op       <= ex_op_i[11:0];
         reg_mul_op       <= ex_op_i[14:12];
-        reg_alu_src1     <= ex_src1_i;
-        reg_alu_src2     <= ex_src2_i;
+        reg_div_op       <= ex_op_i[18:15];
+        reg_cal_src1     <= ex_src1_i;
+        reg_cal_src2     <= ex_src2_i;
         reg_mul_src1     <= ex_src1_i;
         reg_mul_src2     <= ex_src2_i;
         reg_mem_en       <= mem_en_i;
@@ -86,6 +91,19 @@ always @(posedge clk_i) begin
         reg_ex_not_ready <= ex_not_ready_i;
     end
 end
+
+reg div_complete;
+always @(posedge clk_i) begin
+    if (reset_i) begin              // 高电平同步复位
+        div_complete <= 1'b0;
+    end else if (reg_valid && ex_ready_go && mem_allowin_i) begin
+        div_complete <= 1'b0;       // 握手成功，指令离开 EX 级，清零记忆
+    end else if (div_done) begin
+        div_complete <= 1'b1;       // 除法算完但走不掉，记忆完成状态
+    end
+end
+
+assign div_start = reg_valid && (reg_div_op != 4'd0) && !div_complete;
 
 // 中转信号
 assign pc_o           = reg_pc;
@@ -108,12 +126,13 @@ assign data_sram_addr_o  = alu_result;
 assign data_sram_wdata_o = reg_rkd_value;
 
 assign ex_result_o       = {32{reg_alu_op != 12'd0}} & alu_result |
-                           {32{reg_mul_op != 3'd0}}  & mul_result ;
+                           {32{reg_mul_op !=  3'd0}} & mul_result |
+                           {32{reg_div_op !=  4'd0}} & div_result ;
 
 alu u_alu(
     .alu_op     (reg_alu_op  ),
-    .alu_src1   (reg_alu_src1),
-    .alu_src2   (reg_alu_src2),
+    .alu_src1   (reg_cal_src1),
+    .alu_src2   (reg_cal_src2),
     .alu_result (alu_result  )
 );
 
@@ -122,6 +141,17 @@ mul u_mul(
     .mul_src1   (reg_mul_src1),
     .mul_src2   (reg_mul_src2),
     .mul_result (mul_result  )
+);
+
+div u_div(
+    .clk        (clk_i       ),
+    .reset      (reset_i     ),
+    .div_start  (div_start   ),
+    .div_done   (div_done    ),
+    .div_op     (reg_div_op  ),  
+    .div_src1   (reg_cal_src1),
+    .div_src2   (reg_cal_src2),
+    .div_result (div_result  )
 );
 
 endmodule

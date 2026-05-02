@@ -11,7 +11,7 @@ module mycpu_id(
     output wire        gr_we_o,
     output wire        res_from_mem_o,
     output wire [ 4:0] dest_o,
-    output wire [14:0] ex_op_o,
+    output wire [18:0] ex_op_o,
     output wire [31:0] ex_src1_o,
     output wire [31:0] ex_src2_o,
     output wire        mem_en_o,
@@ -55,6 +55,7 @@ wire       read_en_2; // 读rk或者rd的此处为true
 assign     read_en_1   = inst_add_w  | inst_sub_w  | inst_slt    | inst_sltu   |
                          inst_nor    | inst_and    | inst_or     | inst_xor    |
                          inst_slli_w | inst_srli_w | inst_srai_w | inst_addi_w |
+                         inst_div_w  | inst_div_wu | inst_mod_w  | inst_mod_wu |
                          inst_mul_w  | inst_mulh_w | inst_mulh_wu|
                          inst_ld_w   | inst_st_w   | inst_jirl   |
                          inst_andi   | inst_ori    | inst_xori   |
@@ -64,6 +65,7 @@ assign     read_en_1   = inst_add_w  | inst_sub_w  | inst_slt    | inst_sltu   |
 
 assign     read_en_2   = inst_add_w  | inst_sub_w  | inst_slt    | inst_sltu   |
                          inst_nor    | inst_and    | inst_or     | inst_xor    |
+                         inst_div_w  | inst_div_wu | inst_mod_w  | inst_mod_wu |
                          inst_mul_w  | inst_mulh_w | inst_mulh_wu|
                          inst_sll_w  | inst_srl_w  | inst_sra_w  |
                          inst_st_w   |
@@ -107,6 +109,7 @@ assign br_taken_cancel_o = br_taken & id_to_ex_valid_o & ex_allowin_i;
 
 wire [11:0] alu_op;
 wire [ 2:0] mul_op;
+wire [ 3:0] div_op;
 wire        load_op;
 wire        src1_is_pc;
 wire        src2_is_imm;
@@ -140,6 +143,10 @@ wire        inst_sub_w;
 wire        inst_mul_w;
 wire        inst_mulh_w;
 wire        inst_mulh_wu;
+wire        inst_div_w;
+wire        inst_div_wu;
+wire        inst_mod_w;
+wire        inst_mod_wu;
 wire        inst_slt;
 wire        inst_slti;
 wire        inst_sltu;
@@ -200,6 +207,10 @@ assign inst_sub_w  = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h1] & o
 assign inst_mul_w  = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h1] & op_19_15_d[5'h18];
 assign inst_mulh_w = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h1] & op_19_15_d[5'h19];
 assign inst_mulh_wu= op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h1] & op_19_15_d[5'h1a];
+assign inst_div_w  = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h2] & op_19_15_d[5'h00];
+assign inst_div_wu = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h2] & op_19_15_d[5'h02];
+assign inst_mod_w  = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h2] & op_19_15_d[5'h01];
+assign inst_mod_wu = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h2] & op_19_15_d[5'h03];
 assign inst_slt    = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h1] & op_19_15_d[5'h04];
 assign inst_sltu   = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h1] & op_19_15_d[5'h05];
 assign inst_nor    = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h1] & op_19_15_d[5'h08];
@@ -246,6 +257,11 @@ assign alu_op[11] = inst_lu12i_w;
 assign mul_op[ 0] = inst_mul_w;
 assign mul_op[ 1] = inst_mulh_w;
 assign mul_op[ 2] = inst_mulh_wu;
+
+assign div_op[ 0] = inst_div_w;
+assign div_op[ 1] = inst_div_wu;
+assign div_op[ 2] = inst_mod_w;
+assign div_op[ 3] = inst_mod_wu;
 
 assign need_ui5   =  inst_slli_w | inst_srli_w | inst_srai_w;
 assign need_si12  =  inst_addi_w | inst_ld_w | inst_st_w | inst_slti | inst_sltui;
@@ -325,7 +341,7 @@ assign br_target = (inst_beq || inst_bne || inst_bl || inst_b) ? (reg_pc + br_of
 
 assign ex_src1_o = src1_is_pc  ? reg_pc[31:0] : rj_value;
 assign ex_src2_o = src2_is_imm ? imm : rkd_value;
-assign ex_op_o   = {mul_op, alu_op};
+assign ex_op_o   = {div_op, mul_op, alu_op};
 
 assign rkd_value_o = rkd_value;
 assign br_taken_o  = br_taken;

@@ -101,7 +101,7 @@ wire [31:0] id_to_ex_pc;
 wire        id_to_ex_gr_we;
 wire        id_to_ex_res_from_mem;
 wire [ 4:0] id_to_ex_dest;
-wire [14:0] id_to_ex_ex_op;
+wire [18:0] id_to_ex_ex_op;
 wire [31:0] id_to_ex_ex_src1;
 wire [31:0] id_to_ex_ex_src2;
 wire        id_to_ex_mem_en;
