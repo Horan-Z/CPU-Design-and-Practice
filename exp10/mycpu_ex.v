@@ -7,9 +7,9 @@ module mycpu_ex(
     input  wire        gr_we_i,
     input  wire        res_from_mem_i,
     input  wire [ 4:0] dest_i,
-    input  wire [11:0] alu_op_i,
-    input  wire [31:0] alu_src1_i,
-    input  wire [31:0] alu_src2_i,
+    input  wire [14:0] ex_op_i,
+    input  wire [31:0] ex_src1_i,
+    input  wire [31:0] ex_src2_i,
     input  wire        mem_en_i,
     input  wire [ 3:0] mem_we_i,
     input  wire [31:0] rkd_value_i,
@@ -19,7 +19,7 @@ module mycpu_ex(
     output wire        gr_we_o,
     output wire        res_from_mem_o,
     output wire [ 4:0] dest_o,
-    output wire [31:0] alu_result_o,
+    output wire [31:0] ex_result_o,
 
     // 流水线前递用
     // 标记ex阶段无法获得待写入的寄存器值
@@ -42,6 +42,7 @@ module mycpu_ex(
 wire       ex_ready_go = 1'b1;
 
 wire [31:0] alu_result;
+wire [31:0] mul_result;
 
 reg [31:0] reg_pc;
 reg        reg_valid;
@@ -49,8 +50,11 @@ reg        reg_gr_we;
 reg        reg_res_from_mem;
 reg [ 4:0] reg_dest;
 reg [11:0] reg_alu_op;
+reg [ 2:0] reg_mul_op;
 reg [31:0] reg_alu_src1;
 reg [31:0] reg_alu_src2;
+reg [31:0] reg_mul_src1;
+reg [31:0] reg_mul_src2;
 reg        reg_mem_en;
 reg [ 3:0] reg_mem_we;
 reg [31:0] reg_rkd_value;
@@ -70,9 +74,12 @@ always @(posedge clk_i) begin
         reg_gr_we        <= gr_we_i;
         reg_res_from_mem <= res_from_mem_i;
         reg_dest         <= dest_i;
-        reg_alu_op       <= alu_op_i;
-        reg_alu_src1     <= alu_src1_i;
-        reg_alu_src2     <= alu_src2_i;
+        reg_alu_op       <= ex_op_i[11:0];
+        reg_mul_op       <= ex_op_i[14:12];
+        reg_alu_src1     <= ex_src1_i;
+        reg_alu_src2     <= ex_src2_i;
+        reg_mul_src1     <= ex_src1_i;
+        reg_mul_src2     <= ex_src2_i;
         reg_mem_en       <= mem_en_i;
         reg_mem_we       <= mem_we_i;
         reg_rkd_value    <= rkd_value_i;
@@ -100,13 +107,21 @@ assign data_sram_we_o    = reg_mem_we & {4{ex_to_mem_valid_o & mem_allowin_i}};
 assign data_sram_addr_o  = alu_result;
 assign data_sram_wdata_o = reg_rkd_value;
 
-assign alu_result_o    = alu_result;
+assign ex_result_o       = {32{reg_alu_op != 12'd0}} & alu_result |
+                           {32{reg_mul_op != 3'd0}}  & mul_result ;
 
 alu u_alu(
     .alu_op     (reg_alu_op  ),
     .alu_src1   (reg_alu_src1),
     .alu_src2   (reg_alu_src2),
     .alu_result (alu_result  )
+);
+
+mul u_mul(
+    .mul_op     (reg_mul_op  ),
+    .mul_src1   (reg_mul_src1),
+    .mul_src2   (reg_mul_src2),
+    .mul_result (mul_result  )
 );
 
 endmodule

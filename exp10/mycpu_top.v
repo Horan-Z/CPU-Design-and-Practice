@@ -70,9 +70,9 @@ mycpu_id u_id(
     .gr_we_o          (id_to_ex_gr_we        ),
     .res_from_mem_o   (id_to_ex_res_from_mem ),
     .dest_o           (id_to_ex_dest         ),
-    .alu_op_o         (id_to_ex_alu_op       ),
-    .alu_src1_o       (id_to_ex_alu_src1     ),
-    .alu_src2_o       (id_to_ex_alu_src2     ),
+    .ex_op_o          (id_to_ex_ex_op        ),
+    .ex_src1_o        (id_to_ex_ex_src1      ),
+    .ex_src2_o        (id_to_ex_ex_src2      ),
     .mem_en_o         (id_to_ex_mem_en       ),
     .mem_we_o         (id_to_ex_mem_we       ),
     .rkd_value_o      (id_to_ex_rkd_value    ),
@@ -84,7 +84,7 @@ mycpu_id u_id(
     .rf_raddr2_o      (rf_raddr2             ),
     .rf_rdata2_i      (rf_rdata2             ),
     .ex_dest_i        (ex_to_mem_dest        ),
-    .ex_write_reg_i   (ex_to_mem_alu_result  ),
+    .ex_write_reg_i   (ex_to_mem_ex_result   ),
     .mem_dest_i       (mem_to_wb_dest        ),
     .mem_write_reg_i  (mem_to_wb_write_result),
     .wb_dest_i        (wb_dest               ),
@@ -101,9 +101,9 @@ wire [31:0] id_to_ex_pc;
 wire        id_to_ex_gr_we;
 wire        id_to_ex_res_from_mem;
 wire [ 4:0] id_to_ex_dest;
-wire [11:0] id_to_ex_alu_op;
-wire [31:0] id_to_ex_alu_src1;
-wire [31:0] id_to_ex_alu_src2;
+wire [14:0] id_to_ex_ex_op;
+wire [31:0] id_to_ex_ex_src1;
+wire [31:0] id_to_ex_ex_src2;
 wire        id_to_ex_mem_en;
 wire [ 3:0] id_to_ex_mem_we;
 wire [31:0] id_to_ex_rkd_value;
@@ -119,9 +119,9 @@ mycpu_ex u_ex(
     .gr_we_i           (id_to_ex_gr_we        ),
     .res_from_mem_i    (id_to_ex_res_from_mem ),
     .dest_i            (id_to_ex_dest         ),
-    .alu_op_i          (id_to_ex_alu_op       ),
-    .alu_src1_i        (id_to_ex_alu_src1     ),
-    .alu_src2_i        (id_to_ex_alu_src2     ),
+    .ex_op_i           (id_to_ex_ex_op        ),
+    .ex_src1_i         (id_to_ex_ex_src1      ),
+    .ex_src2_i         (id_to_ex_ex_src2      ),
     .mem_en_i          (id_to_ex_mem_en       ),
     .mem_we_i          (id_to_ex_mem_we       ),
     .rkd_value_i       (id_to_ex_rkd_value    ),
@@ -129,7 +129,7 @@ mycpu_ex u_ex(
     .gr_we_o           (ex_to_mem_gr_we       ),
     .res_from_mem_o    (ex_to_mem_res_from_mem),
     .dest_o            (ex_to_mem_dest        ),
-    .alu_result_o      (ex_to_mem_alu_result  ),
+    .ex_result_o       (ex_to_mem_ex_result   ),
     .ex_not_ready_i    (id_to_ex_ex_not_ready ),
     .ex_not_ready_o    (ex_to_id_ex_not_ready ),
     .valid_i           (id_to_ex_valid        ),
@@ -145,7 +145,7 @@ mycpu_ex u_ex(
 wire [31:0] ex_to_mem_pc;
 wire        ex_to_mem_gr_we;
 wire        ex_to_mem_res_from_mem;
-wire [31:0] ex_to_mem_alu_result;
+wire [31:0] ex_to_mem_ex_result;
 wire [ 4:0] ex_to_mem_dest;
 wire        mem_allowin;
 wire        ex_to_mem_valid;
@@ -156,7 +156,7 @@ mycpu_mem u_mem(
     .pc_i              (ex_to_mem_pc          ),
     .gr_we_i           (ex_to_mem_gr_we       ),
     .res_from_mem_i    (ex_to_mem_res_from_mem),
-    .alu_result_i      (ex_to_mem_alu_result  ),
+    .ex_result_i       (ex_to_mem_ex_result   ),
     .dest_i            (ex_to_mem_dest        ),
     .data_sram_rdata_i (data_sram_rdata       ),
     .pc_o              (mem_to_wb_pc          ),
