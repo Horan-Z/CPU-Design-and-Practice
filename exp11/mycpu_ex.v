@@ -12,6 +12,8 @@ module mycpu_ex(
     input  wire [31:0] ex_src2_i,
     input  wire        mem_en_i,
     input  wire [ 3:0] mem_we_i,
+    input  wire [ 2:0] mem_size_i,
+    input  wire        mem_sign_ext_i,
     input  wire [31:0] rkd_value_i,
 
     // 给下一级的数据
@@ -20,6 +22,8 @@ module mycpu_ex(
     output wire        res_from_mem_o,
     output wire [ 4:0] dest_o,
     output wire [31:0] ex_result_o,
+    output wire [ 2:0] mem_size_o,
+    output wire        mem_sign_ext_o,
 
     // 流水线前递用
     // 标记ex阶段无法获得待写入的寄存器值
@@ -61,6 +65,8 @@ reg [31:0] reg_mul_src1;
 reg [31:0] reg_mul_src2;
 reg        reg_mem_en;
 reg [ 3:0] reg_mem_we;
+reg [ 2:0] reg_mem_size;
+reg        reg_mem_sign_ext;
 reg [31:0] reg_rkd_value;
 reg        reg_ex_not_ready;
 
@@ -87,6 +93,8 @@ always @(posedge clk_i) begin
         reg_mul_src2     <= ex_src2_i;
         reg_mem_en       <= mem_en_i;
         reg_mem_we       <= mem_we_i;
+        reg_mem_size     <= mem_size_i;
+        reg_mem_sign_ext <= mem_sign_ext_i;
         reg_rkd_value    <= rkd_value_i;
         reg_ex_not_ready <= ex_not_ready_i;
     end
@@ -115,6 +123,9 @@ assign dest_o         = reg_valid ? reg_dest : 5'd0;
 // 不需要判断reg_gr_we，已在ID阶段处理，如果不需要写入此处dest_0已经被设定为5'd0了
 // assign dest_o         = reg_valid && reg_gr_we ? reg_dest : 5'd0;
 
+assign mem_size_o = reg_mem_size;
+assign mem_sign_ext_o = reg_mem_sign_ext;
+
 assign ex_not_ready_o = reg_ex_not_ready;
 
 assign ex_allowin_o = !reg_valid || (ex_ready_go && mem_allowin_i);
@@ -122,7 +133,7 @@ assign ex_to_mem_valid_o = reg_valid && ex_ready_go;
 
 assign data_sram_en_o    = reg_mem_en & ex_to_mem_valid_o & mem_allowin_i;
 assign data_sram_we_o    = reg_mem_we & {4{ex_to_mem_valid_o & mem_allowin_i}};
-assign data_sram_addr_o  = alu_result;
+assign data_sram_addr_o = {alu_result[31:2], 2'b00};
 assign data_sram_wdata_o = reg_rkd_value;
 
 assign ex_result_o       = {32{reg_alu_op != 12'd0}} & alu_result |

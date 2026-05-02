@@ -75,6 +75,8 @@ mycpu_id u_id(
     .ex_src2_o        (id_to_ex_ex_src2      ),
     .mem_en_o         (id_to_ex_mem_en       ),
     .mem_we_o         (id_to_ex_mem_we       ),
+    .mem_size_o       (id_to_ex_mem_size     ),
+    .mem_sign_ext_o   (id_to_ex_mem_sign_ext ),
     .rkd_value_o      (id_to_ex_rkd_value    ),
     .br_taken_o       (br_taken              ),
     .br_target_o      (br_target             ),
@@ -106,6 +108,8 @@ wire [31:0] id_to_ex_ex_src1;
 wire [31:0] id_to_ex_ex_src2;
 wire        id_to_ex_mem_en;
 wire [ 3:0] id_to_ex_mem_we;
+wire [ 2:0] id_to_ex_mem_size;
+wire        id_to_ex_mem_sign_ext;
 wire [31:0] id_to_ex_rkd_value;
 wire        id_to_ex_ex_not_ready;
 wire        ex_to_id_ex_not_ready;
@@ -124,12 +128,16 @@ mycpu_ex u_ex(
     .ex_src2_i         (id_to_ex_ex_src2      ),
     .mem_en_i          (id_to_ex_mem_en       ),
     .mem_we_i          (id_to_ex_mem_we       ),
+    .mem_size_i        (id_to_ex_mem_size     ),
+    .mem_sign_ext_i    (id_to_ex_mem_sign_ext ),
     .rkd_value_i       (id_to_ex_rkd_value    ),
     .pc_o              (ex_to_mem_pc          ),
     .gr_we_o           (ex_to_mem_gr_we       ),
     .res_from_mem_o    (ex_to_mem_res_from_mem),
     .dest_o            (ex_to_mem_dest        ),
     .ex_result_o       (ex_to_mem_ex_result   ),
+    .mem_size_o        (ex_to_mem_mem_size    ),
+    .mem_sign_ext_o    (ex_to_mem_mem_sign_ext),
     .ex_not_ready_i    (id_to_ex_ex_not_ready ),
     .ex_not_ready_o    (ex_to_id_ex_not_ready ),
     .valid_i           (id_to_ex_valid        ),
@@ -147,6 +155,8 @@ wire        ex_to_mem_gr_we;
 wire        ex_to_mem_res_from_mem;
 wire [31:0] ex_to_mem_ex_result;
 wire [ 4:0] ex_to_mem_dest;
+wire [ 2:0] ex_to_mem_mem_size;
+wire        ex_to_mem_mem_sign_ext;
 wire        mem_allowin;
 wire        ex_to_mem_valid;
 
@@ -159,6 +169,8 @@ mycpu_mem u_mem(
     .ex_result_i       (ex_to_mem_ex_result   ),
     .dest_i            (ex_to_mem_dest        ),
     .data_sram_rdata_i (data_sram_rdata       ),
+    .mem_size_i        (ex_to_mem_mem_size    ),
+    .mem_sign_ext_i    (ex_to_mem_mem_sign_ext),
     .pc_o              (mem_to_wb_pc          ),
     .gr_we_o           (mem_to_wb_gr_we       ),
     .write_result_o    (mem_to_wb_write_result),
