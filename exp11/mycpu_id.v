@@ -370,7 +370,18 @@ assign rj_eq_rd = (rj_value == rkd_value);
 
 wire [31:0] lt_result;
 wire        rj_ge_rd_u;
-assign {rj_ge_rd_u, lt_result} = rj_value + ~rkd_value + 1'b1;
+
+// -----------------------------------------------------------------------------
+// [BUG FIX] 修复 33位无符号运算 隐式扩展引发的进位截断/错误
+// 错误根源：
+//   Verilog 会自动将右侧操作数统一扩展到33位后再运算；
+//   rkd_value 先扩展为 33'h0_xxxx_xxxx，取反后最高位变为1，破坏真实进位。
+// 正确方案：
+//   显式添加高位0 {1'b0, ...}，强制 ~ 操作在32位内执行，再安全扩展为33位；
+//   加法结果的最高位正确存入 rj_ge_rd_u，保证比较标志位无错误。
+// -----------------------------------------------------------------------------
+assign {rj_ge_rd_u, lt_result} = {1'b0, rj_value} + {1'b0, ~rkd_value} + 33'd1;
+
 assign rj_lt_rd = (rj_value[31] & ~rkd_value[31]) | ((rj_value[31] ~^ rkd_value[31]) & lt_result[31]);
 
 assign br_taken = (   inst_beq  &&  rj_eq_rd

@@ -148,7 +148,9 @@ assign data_sram_we_o = {4{reg_mem_we & ex_to_mem_valid_o & mem_allowin_i}} & (
                         );
 
 assign data_sram_addr_o  = {alu_result[31:2], 2'b00};
-assign data_sram_wdata_o = reg_rkd_value;
+assign data_sram_wdata_o = ({32{reg_mem_size[0]}} & {4{reg_rkd_value[ 7:0]}}) |
+                           ({32{reg_mem_size[1]}} & {2{reg_rkd_value[15:0]}}) |
+                           ({32{reg_mem_size[2]}} & reg_rkd_value);
 
 assign ex_result_o       = {32{reg_alu_op != 12'd0}} & alu_result |
                            {32{reg_mul_op !=  3'd0}} & mul_result |
