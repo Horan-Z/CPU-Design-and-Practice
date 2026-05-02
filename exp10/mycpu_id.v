@@ -160,6 +160,7 @@ wire        inst_bl;
 wire        inst_beq;
 wire        inst_bne;
 wire        inst_lu12i_w;
+wire        inst_pcaddu12i;
 
 wire        need_ui5;
 wire        need_si12;
@@ -216,10 +217,11 @@ assign inst_bl     = op_31_26_d[6'h15];
 assign inst_beq    = op_31_26_d[6'h16];
 assign inst_bne    = op_31_26_d[6'h17];
 assign inst_lu12i_w= op_31_26_d[6'h05] & ~reg_inst[25];
+assign inst_pcaddu12i = op_31_26_d[6'h07] & ~reg_inst[25];
 
 assign load_op    = inst_ld_w;
 
-assign alu_op[ 0] = inst_add_w | inst_addi_w | inst_ld_w | inst_st_w | inst_jirl | inst_bl;
+assign alu_op[ 0] = inst_add_w | inst_addi_w | inst_ld_w | inst_st_w | inst_jirl | inst_bl | inst_pcaddu12i;
 assign alu_op[ 1] = inst_sub_w;
 assign alu_op[ 2] = inst_slt  | inst_slti;
 assign alu_op[ 3] = inst_sltu | inst_sltui;
@@ -236,7 +238,7 @@ assign need_ui5   =  inst_slli_w | inst_srli_w | inst_srai_w;
 assign need_si12  =  inst_addi_w | inst_ld_w | inst_st_w | inst_slti | inst_sltui;
 assign need_ze12  =  inst_andi | inst_ori | inst_xori;
 assign need_si16  =  inst_jirl | inst_beq | inst_bne;
-assign need_si20  =  inst_lu12i_w;
+assign need_si20  =  inst_lu12i_w | inst_pcaddu12i;
 assign need_si26  =  inst_b | inst_bl;
 assign src2_is_4  =  inst_jirl | inst_bl;
 
@@ -252,7 +254,7 @@ assign jirl_offs = {{14{i16[15]}}, i16[15:0], 2'b0};
 
 assign src_reg_is_rd = inst_beq | inst_bne | inst_st_w;
 
-assign src1_is_pc    = inst_jirl | inst_bl;
+assign src1_is_pc    = inst_jirl | inst_bl | inst_pcaddu12i;
 
 assign src2_is_imm   = inst_slli_w |
                        inst_srli_w |
@@ -267,7 +269,8 @@ assign src2_is_imm   = inst_slli_w |
                        inst_sltui  |
                        inst_andi   |
                        inst_ori    |
-                       inst_xori   ;
+                       inst_xori   |
+                       inst_pcaddu12i;
 
 assign res_from_mem_o = inst_ld_w;
 assign dst_is_r1      = inst_bl;
