@@ -107,7 +107,7 @@ wire [18:0] id_to_ex_ex_op;
 wire [31:0] id_to_ex_ex_src1;
 wire [31:0] id_to_ex_ex_src2;
 wire        id_to_ex_mem_en;
-wire [ 3:0] id_to_ex_mem_we;
+wire        id_to_ex_mem_we;
 wire [ 2:0] id_to_ex_mem_size;
 wire        id_to_ex_mem_sign_ext;
 wire [31:0] id_to_ex_rkd_value;

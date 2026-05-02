@@ -11,7 +11,7 @@ module mycpu_ex(
     input  wire [31:0] ex_src1_i,
     input  wire [31:0] ex_src2_i,
     input  wire        mem_en_i,
-    input  wire [ 3:0] mem_we_i,
+    input  wire        mem_we_i,
     input  wire [ 2:0] mem_size_i,
     input  wire        mem_sign_ext_i,
     input  wire [31:0] rkd_value_i,
@@ -64,7 +64,7 @@ reg [31:0] reg_cal_src2;
 reg [31:0] reg_mul_src1;
 reg [31:0] reg_mul_src2;
 reg        reg_mem_en;
-reg [ 3:0] reg_mem_we;
+reg        reg_mem_we;
 reg [ 2:0] reg_mem_size;
 reg        reg_mem_sign_ext;
 reg [31:0] reg_rkd_value;
@@ -132,8 +132,22 @@ assign ex_allowin_o = !reg_valid || (ex_ready_go && mem_allowin_i);
 assign ex_to_mem_valid_o = reg_valid && ex_ready_go;
 
 assign data_sram_en_o    = reg_mem_en & ex_to_mem_valid_o & mem_allowin_i;
-assign data_sram_we_o    = reg_mem_we & {4{ex_to_mem_valid_o & mem_allowin_i}};
-assign data_sram_addr_o = {alu_result[31:2], 2'b00};
+
+wire [3:0] byte_we_mask;
+wire [3:0] half_we_mask;
+assign byte_we_mask = ({4{alu_result[1:0] == 2'b00}} & 4'b0001) |
+                      ({4{alu_result[1:0] == 2'b01}} & 4'b0010) |
+                      ({4{alu_result[1:0] == 2'b10}} & 4'b0100) |
+                      ({4{alu_result[1:0] == 2'b11}} & 4'b1000) ;
+assign half_we_mask = ({4{alu_result[1]   == 1'b0}}  & 4'b0011) |
+                      ({4{alu_result[1]   == 1'b1}}  & 4'b1100) ;
+assign data_sram_we_o = {4{reg_mem_we & ex_to_mem_valid_o & mem_allowin_i}} & (
+                            ({4{reg_mem_size[0]}} & byte_we_mask) |
+                            ({4{reg_mem_size[1]}} & half_we_mask) |
+                            ({4{reg_mem_size[2]}} & 4'b1111)
+                        );
+
+assign data_sram_addr_o  = {alu_result[31:2], 2'b00};
 assign data_sram_wdata_o = reg_rkd_value;
 
 assign ex_result_o       = {32{reg_alu_op != 12'd0}} & alu_result |

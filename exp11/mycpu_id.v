@@ -15,7 +15,7 @@ module mycpu_id(
     output wire [31:0] ex_src1_o,
     output wire [31:0] ex_src2_o,
     output wire        mem_en_o,
-    output wire [ 3:0] mem_we_o,
+    output wire        mem_we_o,
     output wire [ 2:0] mem_size_o,
     output wire        mem_sign_ext_o,
     output wire [31:0] rkd_value_o,
@@ -60,12 +60,13 @@ assign     read_en_1   = inst_add_w  | inst_sub_w  | inst_slt    | inst_sltu   |
                          inst_div_w  | inst_div_wu | inst_mod_w  | inst_mod_wu |
                          inst_blt    | inst_bltu   | inst_bge    | inst_bgeu   |
                          inst_ld_b   | inst_ld_bu  | inst_ld_h   | inst_ld_hu  |
+                         inst_ld_w   | inst_st_w   | inst_st_b   | inst_st_h   |
                          inst_mul_w  | inst_mulh_w | inst_mulh_wu|
-                         inst_ld_w   | inst_st_w   | inst_jirl   |
                          inst_andi   | inst_ori    | inst_xori   |
                          inst_sll_w  | inst_srl_w  | inst_sra_w  |
-                         inst_slti   | inst_sltui  |
-                         inst_bne    | inst_beq    ;
+                         inst_bne    | inst_beq    | inst_jirl   |
+                         inst_slti   | inst_sltui  ;
+                         
 
 assign     read_en_2   = inst_add_w  | inst_sub_w  | inst_slt    | inst_sltu   |
                          inst_nor    | inst_and    | inst_or     | inst_xor    |
@@ -73,7 +74,7 @@ assign     read_en_2   = inst_add_w  | inst_sub_w  | inst_slt    | inst_sltu   |
                          inst_blt    | inst_bltu   | inst_bge    | inst_bgeu   |
                          inst_mul_w  | inst_mulh_w | inst_mulh_wu|
                          inst_sll_w  | inst_srl_w  | inst_sra_w  |
-                         inst_st_w   |
+                         inst_st_w   | inst_st_b   | inst_st_h   |
                          inst_bne    | inst_beq    ;
 
 assign     id_ready_go = ~( 
@@ -176,6 +177,8 @@ wire        inst_ld_bu;
 wire        inst_ld_h;
 wire        inst_ld_hu;
 wire        inst_st_w;
+wire        inst_st_b;
+wire        inst_st_h;
 wire        inst_jirl;
 wire        inst_b;
 wire        inst_bl;
@@ -242,6 +245,8 @@ assign inst_ld_b   = op_31_26_d[6'h0a] & op_25_22_d[4'h0];
 assign inst_ld_bu  = op_31_26_d[6'h0a] & op_25_22_d[4'h8];
 assign inst_ld_h   = op_31_26_d[6'h0a] & op_25_22_d[4'h1];
 assign inst_ld_hu  = op_31_26_d[6'h0a] & op_25_22_d[4'h9];
+assign inst_st_b   = op_31_26_d[6'h0a] & op_25_22_d[4'h4];
+assign inst_st_h   = op_31_26_d[6'h0a] & op_25_22_d[4'h5];
 assign inst_st_w   = op_31_26_d[6'h0a] & op_25_22_d[4'h6];
 assign inst_slti   = op_31_26_d[6'h00] & op_25_22_d[4'h8];
 assign inst_sltui  = op_31_26_d[6'h00] & op_25_22_d[4'h9];
@@ -262,7 +267,8 @@ assign inst_pcaddu12i = op_31_26_d[6'h07] & ~reg_inst[25];
 
 assign load_op    = inst_ld_w | inst_ld_b | inst_ld_bu | inst_ld_h | inst_ld_hu;
 
-assign alu_op[ 0] = inst_add_w | inst_addi_w | inst_ld_w | inst_ld_b | inst_ld_bu | inst_ld_h | inst_ld_hu | inst_st_w | inst_jirl | inst_bl | inst_pcaddu12i;
+assign alu_op[ 0] = inst_add_w | inst_addi_w | inst_ld_w | inst_ld_b | inst_ld_bu | inst_ld_h | inst_ld_hu | 
+                    inst_st_w  | inst_st_b   | inst_st_h | inst_jirl | inst_bl    | inst_pcaddu12i;
 assign alu_op[ 1] = inst_sub_w;
 assign alu_op[ 2] = inst_slt  | inst_slti;
 assign alu_op[ 3] = inst_sltu | inst_sltui;
@@ -285,7 +291,8 @@ assign div_op[ 2] = inst_mod_w;
 assign div_op[ 3] = inst_mod_wu;
 
 assign need_ui5   =  inst_slli_w | inst_srli_w | inst_srai_w;
-assign need_si12  =  inst_addi_w | inst_ld_w | inst_ld_b | inst_ld_bu | inst_ld_h | inst_ld_hu | inst_st_w | inst_slti | inst_sltui;
+assign need_si12  =  inst_addi_w | inst_ld_w | inst_ld_b | inst_ld_bu | inst_ld_h | inst_ld_hu |
+                     inst_st_w   | inst_st_b | inst_st_h | inst_slti  | inst_sltui;
 assign need_ze12  =  inst_andi | inst_ori | inst_xori;
 assign need_si16  =  inst_jirl | inst_beq | inst_bne | inst_blt | inst_bltu | inst_bge | inst_bgeu;
 assign need_si20  =  inst_lu12i_w | inst_pcaddu12i;
@@ -302,7 +309,8 @@ assign br_offs = need_si26 ? {{ 4{i26[25]}}, i26[25:0], 2'b0} :
 
 assign jirl_offs = {{14{i16[15]}}, i16[15:0], 2'b0};
 
-assign src_reg_is_rd = inst_beq | inst_bne | inst_blt | inst_bltu | inst_bge | inst_bgeu | inst_st_w;
+assign src_reg_is_rd = inst_beq  | inst_bne  | inst_blt | inst_bltu | inst_bge | inst_bgeu |
+                       inst_st_w | inst_st_b | inst_st_h;
 
 assign src1_is_pc    = inst_jirl | inst_bl | inst_pcaddu12i;
 
@@ -316,6 +324,8 @@ assign src2_is_imm   = inst_slli_w |
                        inst_ld_h   |
                        inst_ld_hu  |
                        inst_st_w   |
+                       inst_st_b   | 
+                       inst_st_h   |
                        inst_lu12i_w|
                        inst_jirl   |
                        inst_bl     |
@@ -328,15 +338,18 @@ assign src2_is_imm   = inst_slli_w |
 
 assign res_from_mem_o = inst_ld_w | inst_ld_b | inst_ld_bu | inst_ld_h | inst_ld_hu;
 assign dst_is_r1      = inst_bl;
-assign gr_we_o        = ~(inst_st_w | inst_beq | inst_bne | inst_b | inst_blt | inst_bltu | inst_bge | inst_bgeu) & reg_valid;
-assign mem_we_o       = {4{inst_st_w}} & {4{reg_valid}};
+assign gr_we_o        = ~(inst_st_w | inst_st_b | inst_st_h | inst_beq | inst_bne | inst_b | inst_blt | inst_bltu | inst_bge | inst_bgeu) & reg_valid;
+assign mem_we_o       = (inst_st_w | inst_st_b | inst_st_h) & reg_valid;
 assign mem_size_o = ({3{inst_ld_b}}  & 3'b001) |
                     ({3{inst_ld_bu}} & 3'b001) |
                     ({3{inst_ld_h}}  & 3'b010) |
                     ({3{inst_ld_hu}} & 3'b010) |
-                    ({3{inst_ld_w}}  & 3'b100) ;
+                    ({3{inst_ld_w}}  & 3'b100) |
+                    ({3{inst_st_b}}  & 3'b001) |
+                    ({3{inst_st_h}}  & 3'b010) |
+                    ({3{inst_st_w}}  & 3'b100) ;
 assign mem_sign_ext_o = inst_ld_b | inst_ld_h;
-assign mem_en_o       = (inst_st_w | inst_ld_w | inst_ld_b | inst_ld_bu | inst_ld_h | inst_ld_hu) & reg_valid;
+assign mem_en_o       = (inst_st_w | inst_st_b | inst_st_h | inst_ld_w | inst_ld_b | inst_ld_bu | inst_ld_h | inst_ld_hu) & reg_valid;
 assign pc_o           = reg_pc;
 
 // 提前处理dest
