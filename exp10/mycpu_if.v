@@ -1,20 +1,25 @@
 module mycpu_if(
     input  wire        clk_i,
     input  wire        reset_i,
-    input  wire        id_allowin_i,
-    input  wire        valid_i,
-    input  wire [31:0] pc_i,
-    input  wire        br_taken_cancel_i,
-    output wire        if_to_id_valid_o,
-    output wire        if_allowin_o,
 
+    // 输入
+    input  wire        br_taken_cancel_i,
+    input  wire [31:0] pc_i,
     input  wire [31:0] inst_sram_rdata_i,
 
+    // 给下一级的数据
     output wire [31:0] inst_o,
-    output wire [31:0] pc_o
+    output wire [31:0] pc_o,
+
+    // 控制信号
+    input  wire        valid_i,
+    input  wire        id_allowin_i,
+    output wire        if_allowin_o,
+    output wire        if_to_id_valid_o
 );
 
 wire        if_ready_go = 1'b1;
+
 reg         reg_valid;
 reg  [31:0] reg_pc; 
 reg  [31:0] reg_inst;

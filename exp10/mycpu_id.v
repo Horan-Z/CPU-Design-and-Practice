@@ -2,13 +2,11 @@ module mycpu_id(
     input  wire        clk_i,
     input  wire        reset_i,
 
+    // 输入
     input  wire [31:0] pc_i,
     input  wire [31:0] inst_i,
-    input  wire        valid_i,
-    input  wire        ex_allowin_i,
-    output wire        id_allowin_o,
-    output wire        id_to_ex_valid_o,
 
+    // 给下一级的数据
     output wire [31:0] pc_o,
     output wire        gr_we_o,
     output wire        res_from_mem_o,
@@ -19,27 +17,38 @@ module mycpu_id(
     output wire        mem_en_o,
     output wire [ 3:0] mem_we_o,
     output wire [31:0] rkd_value_o,
-    output wire        ex_not_ready_o,
 
+    // 分支跳转
     output wire        br_taken_o,
     output wire [31:0] br_target_o,
     output wire        br_taken_cancel_o,
 
+    // 读寄存器
     output wire [ 4:0] rf_raddr1_o,
     input  wire [31:0] rf_rdata1_i,
     output wire [ 4:0] rf_raddr2_o,
     input  wire [31:0] rf_rdata2_i,
 
+    // 流水线前递用
     input  wire [ 4:0] ex_dest_i,
-    input  wire        ex_not_ready_i,
     input  wire [31:0] ex_write_reg_i,
     input  wire [ 4:0] mem_dest_i,
     input  wire [31:0] mem_write_reg_i,
     input  wire [ 4:0] wb_dest_i,
-    input  wire [31:0] wb_write_reg_i
+    input  wire [31:0] wb_write_reg_i,
+    // 标记ex阶段无法获得待写入的寄存器值
+    input  wire        ex_not_ready_i,
+    output wire        ex_not_ready_o,
+
+    // 控制信号
+    input  wire        valid_i,
+    input  wire        ex_allowin_i,
+    output wire        id_allowin_o,
+    output wire        id_to_ex_valid_o
 );
 
 wire       id_ready_go;
+
 wire       read_en_1; // 读rj的此处为true
 wire       read_en_2; // 读rk或者rd的此处为true
 
@@ -237,12 +246,13 @@ assign dst_is_r1      = inst_bl;
 assign gr_we_o        = (~inst_st_w & ~inst_beq & ~inst_bne & ~inst_b) & reg_valid;
 assign mem_we_o       = {4{inst_st_w}} & {4{reg_valid}};;
 assign mem_en_o       = (inst_st_w | inst_ld_w) & reg_valid;
+assign pc_o           = reg_pc;
+
 // 提前处理dest
 // 如果不需要写入，将dest设置为0号寄存器
 // 因为0号寄存器不可能写入，相当于标记了不需要写入
 // 省下了gr_we信号回传
 assign dest_o         = gr_we_o ? (dst_is_r1 ? 5'd1 : rd) : 5'd0;
-assign pc_o           = reg_pc;
 
 assign ex_not_ready_o = inst_ld_w;
 
@@ -282,14 +292,12 @@ assign rf_rdata1   = rf_raddr1 != 5'd0 && rf_raddr1 ==  ex_dest_i ?  ex_write_re
                      rf_raddr1 != 5'd0 && rf_raddr1 == mem_dest_i ? mem_write_reg_i :
                      rf_raddr1 != 5'd0 && rf_raddr1 ==  wb_dest_i ?  wb_write_reg_i :
                                                                         rf_rdata1_i ;
-// assign rf_rdata1   = rf_rdata1_i;
 
 assign rf_raddr2_o = rf_raddr2; // rk 或者 rd
 assign rf_rdata2   = rf_raddr2 != 5'd0 && rf_raddr2 ==  ex_dest_i ?  ex_write_reg_i :
                      rf_raddr2 != 5'd0 && rf_raddr2 == mem_dest_i ? mem_write_reg_i :
                      rf_raddr2 != 5'd0 && rf_raddr2 ==  wb_dest_i ?  wb_write_reg_i :
                                                                         rf_rdata2_i ;
-// assign rf_rdata2   = rf_rdata2_i;
 
 assign id_allowin_o = !reg_valid || (id_ready_go && ex_allowin_i);
 assign id_to_ex_valid_o = reg_valid && id_ready_go;

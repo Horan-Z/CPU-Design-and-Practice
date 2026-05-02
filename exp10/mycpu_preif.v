@@ -1,16 +1,21 @@
 module mycpu_preif(
     input  wire        clk_i,
     input  wire        reset_i,
-    input  wire        if_allowin_i,
-    output wire        pre_to_if_valid_o,
 
+    // 输入
     input  wire        br_taken_i,
     input  wire [31:0] br_target_i,
 
+    // 给下一级的数据
+    output wire [31:0] pc_o,
+
+    // inst_ram读信号
     output wire        inst_sram_en_o,
     output wire [31:0] inst_sram_addr_o,
 
-    output wire [31:0] pc_o
+    // 控制信号
+    input  wire        if_allowin_i,
+    output wire        pre_to_if_valid_o
 );
 
 wire        pre_ready_go = 1'b1;
@@ -20,6 +25,7 @@ wire [31:0] seq_pc;
 wire [31:0] nextpc;
 
 assign seq_pc       = pc + 32'h4;
+
 // 如果br_taken，则当然要变为br_target
 // 如果没有br_taken，且if阶段阻塞中，那么需要保持当前pc，跟着if一起阻塞
 assign nextpc = br_taken_i ? br_target_i : (if_allowin_i ? seq_pc : pc);

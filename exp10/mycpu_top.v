@@ -26,37 +26,37 @@ always @(posedge clk) reset <= ~resetn;
 mycpu_preif u_preif(
     .clk_i             (clk               ),
     .reset_i           (reset             ),
-    .if_allowin_i      (if_allowin        ),
-    .pre_to_if_valid_o (pre_to_if_valid   ),
     .br_taken_i        (br_taken          ),
     .br_target_i       (br_target         ),
+    .pc_o              (pre_to_if_pc      ),
     .inst_sram_en_o    (inst_sram_en      ),
     .inst_sram_addr_o  (inst_sram_addr    ),
-    .pc_o              (pre_to_if_pc      )
+    .if_allowin_i      (if_allowin        ),
+    .pre_to_if_valid_o (pre_to_if_valid   )
 );
 
 wire        if_allowin;
 wire        pre_to_if_valid;
 wire [31:0] pre_to_if_pc;
+wire        br_taken;
+wire [31:0] br_target;
 
 mycpu_if u_if(
     .clk_i             (clk               ),
     .reset_i           (reset             ),
-    .id_allowin_i      (id_allowin        ),
-    .valid_i           (pre_to_if_valid   ),
-    .pc_i              (pre_to_if_pc      ),
     .br_taken_cancel_i (br_taken_cancel   ),
-    .if_to_id_valid_o  (if_to_id_valid    ),
-    .if_allowin_o      (if_allowin        ),
+    .pc_i              (pre_to_if_pc      ),
     .inst_sram_rdata_i (inst_sram_rdata   ),
     .inst_o            (if_to_id_inst     ),
-    .pc_o              (if_to_id_pc       )
+    .pc_o              (if_to_id_pc       ),
+    .valid_i           (pre_to_if_valid   ),
+    .id_allowin_i      (id_allowin        ),
+    .if_allowin_o      (if_allowin        ),
+    .if_to_id_valid_o  (if_to_id_valid    )
 );
 
 wire [31:0] if_to_id_pc;
 wire [31:0] if_to_id_inst;
-wire        br_taken;
-wire [31:0] br_target;
 wire        br_taken_cancel;
 wire        if_to_id_valid;
 wire        id_allowin;
@@ -66,10 +66,6 @@ mycpu_id u_id(
     .reset_i          (reset                 ),
     .pc_i             (if_to_id_pc           ),
     .inst_i           (if_to_id_inst         ),
-    .valid_i          (if_to_id_valid        ),
-    .ex_allowin_i     (ex_allowin            ),
-    .id_allowin_o     (id_allowin            ),
-    .id_to_ex_valid_o (id_to_ex_valid        ),
     .pc_o             (id_to_ex_pc           ),
     .gr_we_o          (id_to_ex_gr_we        ),
     .res_from_mem_o   (id_to_ex_res_from_mem ),
@@ -80,7 +76,6 @@ mycpu_id u_id(
     .mem_en_o         (id_to_ex_mem_en       ),
     .mem_we_o         (id_to_ex_mem_we       ),
     .rkd_value_o      (id_to_ex_rkd_value    ),
-    .ex_not_ready_o   (id_to_ex_ex_not_ready ),
     .br_taken_o       (br_taken              ),
     .br_target_o      (br_target             ),
     .br_taken_cancel_o(br_taken_cancel       ),
@@ -89,12 +84,17 @@ mycpu_id u_id(
     .rf_raddr2_o      (rf_raddr2             ),
     .rf_rdata2_i      (rf_rdata2             ),
     .ex_dest_i        (ex_to_mem_dest        ),
-    .ex_not_ready_i   (ex_to_id_ex_not_ready ),
     .ex_write_reg_i   (ex_to_mem_alu_result  ),
     .mem_dest_i       (mem_to_wb_dest        ),
     .mem_write_reg_i  (mem_to_wb_write_result),
     .wb_dest_i        (wb_dest               ),
-    .wb_write_reg_i   (rf_wdata              )
+    .wb_write_reg_i   (rf_wdata              ),
+    .ex_not_ready_i   (ex_to_id_ex_not_ready ),
+    .ex_not_ready_o   (id_to_ex_ex_not_ready ),
+    .valid_i          (if_to_id_valid        ),
+    .ex_allowin_i     (ex_allowin            ),
+    .id_allowin_o     (id_allowin            ),
+    .id_to_ex_valid_o (id_to_ex_valid        )
 );
 
 wire [31:0] id_to_ex_pc;
@@ -125,12 +125,13 @@ mycpu_ex u_ex(
     .mem_en_i          (id_to_ex_mem_en       ),
     .mem_we_i          (id_to_ex_mem_we       ),
     .rkd_value_i       (id_to_ex_rkd_value    ),
-    .ex_not_ready_i    (id_to_ex_ex_not_ready ),
     .pc_o              (ex_to_mem_pc          ),
     .gr_we_o           (ex_to_mem_gr_we       ),
     .res_from_mem_o    (ex_to_mem_res_from_mem),
     .dest_o            (ex_to_mem_dest        ),
     .alu_result_o      (ex_to_mem_alu_result  ),
+    .ex_not_ready_i    (id_to_ex_ex_not_ready ),
+    .ex_not_ready_o    (ex_to_id_ex_not_ready ),
     .valid_i           (id_to_ex_valid        ),
     .mem_allowin_i     (mem_allowin           ),
     .ex_allowin_o      (ex_allowin            ),
@@ -138,8 +139,7 @@ mycpu_ex u_ex(
     .data_sram_en_o    (data_sram_en          ),
     .data_sram_we_o    (data_sram_we          ),
     .data_sram_addr_o  (data_sram_addr        ),
-    .data_sram_wdata_o (data_sram_wdata       ),
-    .ex_not_ready_o    (ex_to_id_ex_not_ready )
+    .data_sram_wdata_o (data_sram_wdata       )
 );
 
 wire [31:0] ex_to_mem_pc;
@@ -161,8 +161,8 @@ mycpu_mem u_mem(
     .data_sram_rdata_i (data_sram_rdata       ),
     .pc_o              (mem_to_wb_pc          ),
     .gr_we_o           (mem_to_wb_gr_we       ),
-    .dest_o            (mem_to_wb_dest        ),
     .write_result_o    (mem_to_wb_write_result),
+    .dest_o            (mem_to_wb_dest        ),
     .valid_i           (ex_to_mem_valid       ),
     .wb_allowin_i      (wb_allowin            ),
     .mem_allowin_o     (mem_allowin           ),

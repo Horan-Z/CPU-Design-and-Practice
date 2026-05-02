@@ -2,6 +2,7 @@ module mycpu_mem(
     input  wire        clk_i,
     input  wire        reset_i,
 
+    // 输入
     input  wire [31:0] pc_i,
     input  wire        gr_we_i,
     input  wire        res_from_mem_i,
@@ -9,11 +10,13 @@ module mycpu_mem(
     input  wire [ 4:0] dest_i,
     input  wire [31:0] data_sram_rdata_i,
 
+    // 给下一级的数据
     output wire [31:0] pc_o,
     output wire        gr_we_o,
     output wire [31:0] write_result_o,
     output wire [ 4:0] dest_o,
 
+    // 控制信号
     input  wire        valid_i,
     input  wire        wb_allowin_i,
     output wire        mem_allowin_o,
@@ -58,7 +61,9 @@ assign pc_o           = reg_pc;
 assign gr_we_o        = reg_gr_we;
 
 // 如果不是valid，就释放dest，防止死锁
-assign dest_o         = reg_valid && reg_gr_we ? reg_dest : 5'd0;
+assign dest_o         = reg_valid ? reg_dest : 5'd0;
+// 不需要判断reg_gr_we，已在ID阶段处理，如果不需要写入此处dest_0已经被设定为5'd0了
+// assign dest_o         = reg_valid && reg_gr_we ? reg_dest : 5'd0;
 
 assign mem_allowin_o = !reg_valid || (mem_ready_go && wb_allowin_i);
 assign mem_to_wb_valid_o = reg_valid && mem_ready_go;

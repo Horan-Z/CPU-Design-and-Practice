@@ -2,6 +2,7 @@ module mycpu_ex(
     input  wire        clk_i,
     input  wire        reset_i,
 
+    // 输入
     input  wire [31:0] pc_i,
     input  wire        gr_we_i,
     input  wire        res_from_mem_i,
@@ -12,24 +13,30 @@ module mycpu_ex(
     input  wire        mem_en_i,
     input  wire [ 3:0] mem_we_i,
     input  wire [31:0] rkd_value_i,
-    input  wire        ex_not_ready_i,
 
+    // 给下一级的数据
     output wire [31:0] pc_o,
     output wire        gr_we_o,
     output wire        res_from_mem_o,
     output wire [ 4:0] dest_o,
     output wire [31:0] alu_result_o,
 
+    // 流水线前递用
+    // 标记ex阶段无法获得待写入的寄存器值
+    input  wire        ex_not_ready_i,
+    output wire        ex_not_ready_o,
+
+    // 控制信号
     input  wire        valid_i,
     input  wire        mem_allowin_i,
     output wire        ex_allowin_o,
     output wire        ex_to_mem_valid_o,
 
+    // data_ram读写信号
     output wire        data_sram_en_o,
     output wire [ 3:0] data_sram_we_o,
     output wire [31:0] data_sram_addr_o,
-    output wire [31:0] data_sram_wdata_o,
-    output wire        ex_not_ready_o
+    output wire [31:0] data_sram_wdata_o
 );
 
 wire       ex_ready_go = 1'b1;
@@ -77,8 +84,12 @@ end
 assign pc_o           = reg_pc;
 assign gr_we_o        = reg_gr_we;
 assign res_from_mem_o = reg_res_from_mem;
+
 // 如果不是valid，就释放dest，防止死锁
-assign dest_o         = reg_valid && reg_gr_we ? reg_dest : 5'd0;
+assign dest_o         = reg_valid ? reg_dest : 5'd0;
+// 不需要判断reg_gr_we，已在ID阶段处理，如果不需要写入此处dest_0已经被设定为5'd0了
+// assign dest_o         = reg_valid && reg_gr_we ? reg_dest : 5'd0;
+
 assign ex_not_ready_o = reg_ex_not_ready;
 
 assign ex_allowin_o = !reg_valid || (ex_ready_go && mem_allowin_i);
