@@ -6,14 +6,29 @@ module mycpu_wb(
     input  wire [31:0] pc_i,
     input  wire        valid_i,
     input  wire        gr_we_i,
+    input  wire        csr_we_i,
+    input  wire [13:0] csr_wnum_i,
     input  wire [31:0] write_result_i,
+    input  wire [31:0] write_csr_i,
+    input  wire [31:0] csr_mask_i,
     input  wire [ 4:0] dest_i,
+    input  wire        is_exc_i,
+    input  wire        exc_ecode_i,
+    input  wire        is_ertn_i,
 
     // 写寄存器
     output wire        rf_we_o,
     output wire [ 4:0] rf_waddr_o,
     output wire [31:0] rf_wdata_o,
     output wire [ 4:0] dest_o,
+    output wire        csr_we_o,
+    output wire [13:0] csr_wnum_o,
+    output wire [31:0] csr_mask_o,
+    output wire [31:0] csr_wvalue_o,
+    output wire        wb_exc_o,
+    output wire        wb_ecode_o,
+    output wire [31:0] wb_pc_o,
+    output wire        ertn_flush_o,
 
     // debug信号
     output wire [31:0] debug_wb_pc_o,
@@ -30,8 +45,15 @@ wire       wb_ready_go = 1'b1;
 reg [31:0] reg_pc;
 reg        reg_valid;
 reg        reg_gr_we;
+reg        reg_csr_we;
+reg [13:0] reg_csr_wnum;
 reg [31:0] reg_write_result;
+reg [31:0] reg_write_csr;
+reg [31:0] reg_csr_mask;
 reg [ 4:0] reg_dest;
+reg        reg_is_exc;
+reg [ 5:0] reg_exc_ecode;
+reg        reg_is_ertn;
 
 always @(posedge clk_i) begin
     if (reset_i) begin
@@ -48,8 +70,15 @@ always @(posedge clk_i) begin
     if(wb_allowin_o && valid_i) begin
         reg_pc           <= pc_i;
         reg_gr_we        <= gr_we_i;
+        reg_csr_we       <= csr_we_i;
+        reg_csr_wnum     <= csr_wnum_i;
         reg_write_result <= write_result_i;
+        reg_write_csr    <= write_csr_i;
+        reg_csr_mask     <= csr_mask_i;
         reg_dest         <= dest_i;
+        reg_is_exc       <= is_exc_i;
+        reg_exc_ecode    <= exc_ecode_i;
+        reg_is_ertn      <= is_ertn_i;
     end
 end
 
@@ -61,6 +90,16 @@ assign rf_wdata_o = reg_write_result;
 assign dest_o         = reg_valid ? reg_dest : 5'd0;
 // 不需要判断reg_gr_we，已在ID阶段处理，如果不需要写入此处dest_0已经被设定为5'd0了
 // assign dest_o         = reg_valid && reg_gr_we ? reg_dest : 5'd0;
+
+// wb级流水不会触发异常
+assign csr_we_o     = reg_csr_we; 
+assign csr_wnum_o   = reg_csr_wnum;
+assign csr_mask_o   = reg_csr_mask;
+assign csr_wvalue_o = reg_write_csr;
+assign wb_exc_o     = reg_is_exc;
+assign exc_ecode_o  = reg_exc_ecode;
+assign wb_pc_o      = reg_pc;
+assign ertn_flush_o = reg_is_ertn;
 
 assign debug_wb_pc_o       = reg_pc;
 assign debug_wb_rf_we_o    = {4{rf_we_o}};

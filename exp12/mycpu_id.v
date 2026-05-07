@@ -9,6 +9,8 @@ module mycpu_id(
     // 给下一级的数据
     output wire [31:0] pc_o,
     output wire        gr_we_o,
+    output wire        csr_we_o,
+    output wire [31:0] csr_result,
     output wire        res_from_mem_o,
     output wire [ 4:0] dest_o,
     output wire [18:0] ex_op_o,
@@ -19,6 +21,13 @@ module mycpu_id(
     output wire [ 2:0] mem_size_o,
     output wire        mem_sign_ext_o,
     output wire [31:0] rkd_value_o,
+    output wire        is_exc_o,
+    output wire        exc_ecode_o,
+    output wire        is_ertn_o,
+    output wire [31:0] csr_mask_o,
+
+    // 读csr，同时给下一级
+    output wire [13:0] csr_num_o,
 
     // 分支跳转
     output wire        br_taken_o,
@@ -41,6 +50,11 @@ module mycpu_id(
     // 标记ex阶段无法获得待写入的寄存器值
     input  wire        ex_not_ready_i,
     output wire        ex_not_ready_o,
+
+    // csr读阻塞用
+    input  wire        ex_csr_we_i,
+    input  wire        mem_csr_we_i,
+    input  wire        wb_csr_we_i,
 
     // 控制信号
     input  wire        valid_i,
@@ -77,9 +91,12 @@ assign     read_en_2   = inst_add_w  | inst_sub_w  | inst_slt    | inst_sltu   |
                          inst_st_w   | inst_st_b   | inst_st_h   |
                          inst_bne    | inst_beq    ;
 
+assign     read_csr    = inst_csrrd  | inst_csrwr  | inst_csrxchg;
+
 assign     id_ready_go = ~( 
     (read_en_1 && (rf_raddr1 != 5'd0) && ((rf_raddr1 == ex_dest_i) && ex_not_ready_i)) |
-    (read_en_2 && (rf_raddr2 != 5'd0) && ((rf_raddr2 == ex_dest_i) && ex_not_ready_i))
+    (read_en_2 && (rf_raddr2 != 5'd0) && ((rf_raddr2 == ex_dest_i) && ex_not_ready_i)) |
+    (read_csr  &&     ex_csr_we_i     &&        mem_csr_we_i       &&   wb_csr_we_i  )
 );
 
 reg [31:0] reg_pc;
@@ -131,6 +148,7 @@ wire [ 5:0] op_31_26;
 wire [ 3:0] op_25_22;
 wire [ 1:0] op_21_20;
 wire [ 4:0] op_19_15;
+wire [ 4:0] op_14_10;
 wire [ 4:0] rd;
 wire [ 4:0] rj;
 wire [ 4:0] rk;
@@ -143,6 +161,7 @@ wire [63:0] op_31_26_d;
 wire [15:0] op_25_22_d;
 wire [ 3:0] op_21_20_d;
 wire [31:0] op_19_15_d;
+wire [31:0] op_14_10_d;
 
 wire        inst_add_w;
 wire        inst_sub_w;
@@ -190,6 +209,11 @@ wire        inst_bge;
 wire        inst_bgeu;
 wire        inst_lu12i_w;
 wire        inst_pcaddu12i;
+wire        inst_ertn;
+wire        inst_syscall;
+wire        inst_csrwr;
+wire        inst_csrrd;
+wire        inst_csrxchg;
 
 wire        need_ui5;
 wire        need_si12;
@@ -208,6 +232,7 @@ assign op_31_26  = reg_inst[31:26];
 assign op_25_22  = reg_inst[25:22];
 assign op_21_20  = reg_inst[21:20];
 assign op_19_15  = reg_inst[19:15];
+assign op_14_10  = reg_inst[14:10];
 
 assign rd   = reg_inst[ 4: 0];
 assign rj   = reg_inst[ 9: 5];
@@ -218,6 +243,11 @@ assign i20  = reg_inst[24: 5];
 assign i16  = reg_inst[25:10];
 assign i26  = {reg_inst[ 9: 0], reg_inst[25:10]};
 
+assign inst_csrwr  = op_31_26_d[6'h01] & rj == 5'd1;
+assign inst_csrrd  = op_31_26_d[6'h01] & rj == 5'd0;
+assign inst_csrxchg= op_31_26_d[6'h01] & (rj != 5'd0 && rj != 5'd1);
+assign inst_ertn   = op_31_26_d[6'h01] & op_25_22_d[4'h9] & op_21_20_d[2'h0] & op_19_15_d[5'h10] & op_14_10_d[5'h0e];
+assign inst_syscall= op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h2] & op_19_15_d[5'h16];
 assign inst_add_w  = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h1] & op_19_15_d[5'h00];
 assign inst_sub_w  = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h1] & op_19_15_d[5'h02];
 assign inst_mul_w  = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h1] & op_19_15_d[5'h18];
@@ -279,7 +309,9 @@ assign alu_op[ 7] = inst_xor  | inst_xori;
 assign alu_op[ 8] = inst_slli_w | inst_sll_w;
 assign alu_op[ 9] = inst_srli_w | inst_srl_w;
 assign alu_op[10] = inst_srai_w | inst_sra_w;
-assign alu_op[11] = inst_lu12i_w;
+// alu_op[11]会直接将src2输出为ex级result
+// 不激活src2_is_imm，就可以将rkd_value作为src2
+assign alu_op[11] = inst_lu12i_w| inst_csrwr | inst_csrxchg;
 
 assign mul_op[ 0] = inst_mul_w;
 assign mul_op[ 1] = inst_mulh_w;
@@ -310,7 +342,7 @@ assign br_offs = need_si26 ? {{ 4{i26[25]}}, i26[25:0], 2'b0} :
 assign jirl_offs = {{14{i16[15]}}, i16[15:0], 2'b0};
 
 assign src_reg_is_rd = inst_beq  | inst_bne  | inst_blt | inst_bltu | inst_bge | inst_bgeu |
-                       inst_st_w | inst_st_b | inst_st_h;
+                       inst_st_w | inst_st_b | inst_st_h | inst_csrwr | inst_csrxchg;
 
 assign src1_is_pc    = inst_jirl | inst_bl | inst_pcaddu12i;
 
@@ -339,6 +371,7 @@ assign src2_is_imm   = inst_slli_w |
 assign res_from_mem_o = inst_ld_w | inst_ld_b | inst_ld_bu | inst_ld_h | inst_ld_hu;
 assign dst_is_r1      = inst_bl;
 assign gr_we_o        = ~(inst_st_w | inst_st_b | inst_st_h | inst_beq | inst_bne | inst_b | inst_blt | inst_bltu | inst_bge | inst_bgeu) & reg_valid;
+assign csr_we_o       = (inst_csrrd | inst_csrwr | inst_csrxchg) & reg_valid;
 assign mem_we_o       = (inst_st_w | inst_st_b | inst_st_h) & reg_valid;
 assign mem_size_o = ({3{inst_ld_b}}  & 3'b001) |
                     ({3{inst_ld_bu}} & 3'b001) |
@@ -356,7 +389,7 @@ assign pc_o           = reg_pc;
 // 如果不需要写入，将dest设置为0号寄存器
 // 因为0号寄存器不可能写入，相当于标记了不需要写入
 // 省下了gr_we信号回传
-assign dest_o         = gr_we_o ? (dst_is_r1 ? 5'd1 : rd) : 5'd0;
+assign dest_o         = gr_we_o | csr_we_o ? (dst_is_r1 ? 5'd1 : rd) : 5'd0;
 
 assign ex_not_ready_o = inst_ld_w | inst_ld_b | inst_ld_bu | inst_ld_h | inst_ld_hu;
 
@@ -412,6 +445,12 @@ assign rkd_value_o = rkd_value;
 assign br_taken_o  = br_taken;
 assign br_target_o = br_target;
 
+assign is_exc_o    = inst_syscall;
+assign exc_ecode_o = {6{inst_syscall}} & 5'h0b;
+assign is_ertn_o   = inst_ertn;
+assign csr_mask_o  = inst_csrxchg ? rj_value : 32'hffffffff;     
+assign csr_num_o   = reg_inst[23:10];
+
 assign rf_raddr1_o = rf_raddr1; // rj
 assign rf_rdata1   = rf_raddr1 != 5'd0 && rf_raddr1 ==  ex_dest_i ?  ex_write_reg_i :
                      rf_raddr1 != 5'd0 && rf_raddr1 == mem_dest_i ? mem_write_reg_i :
@@ -431,5 +470,6 @@ decoder_6_64 u_dec0(.in(op_31_26 ), .out(op_31_26_d ));
 decoder_4_16 u_dec1(.in(op_25_22 ), .out(op_25_22_d ));
 decoder_2_4  u_dec2(.in(op_21_20 ), .out(op_21_20_d ));
 decoder_5_32 u_dec3(.in(op_19_15 ), .out(op_19_15_d ));
+decoder_5_32 u_dec4(.in(op_14_10 ), .out(op_14_10_d ));
 
 endmodule
