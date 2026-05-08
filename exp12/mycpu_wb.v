@@ -1,6 +1,7 @@
 module mycpu_wb(
     input  wire        clk_i,
     input  wire        reset_i,
+    input  wire        flush_all_i,
 
     // 输入
     input  wire [31:0] pc_i,
@@ -29,6 +30,7 @@ module mycpu_wb(
     output wire        wb_ecode_o,
     output wire [31:0] wb_pc_o,
     output wire        ertn_flush_o,
+    output wire        flush_all_o,
 
     // debug信号
     output wire [31:0] debug_wb_pc_o,
@@ -56,7 +58,7 @@ reg [ 5:0] reg_exc_ecode;
 reg        reg_is_ertn;
 
 always @(posedge clk_i) begin
-    if (reset_i) begin
+    if (reset_i | flush_all_i) begin
         reg_valid <= 1'b0;
     end else if(wb_allowin_o) begin
         // 这里也需要判断wb_allowin_o的原因是防止在本级处理完毕之前就关掉了valid信号
@@ -100,7 +102,8 @@ assign csr_wvalue_o = reg_write_csr;
 assign wb_exc_o     = reg_is_exc;
 assign exc_ecode_o  = reg_exc_ecode;
 assign wb_pc_o      = reg_pc;
-assign ertn_flush_o = reg_is_ertn;
+assign ertn_flush_o = reg_is_ertn & reg_valid;
+assign flush_all_o  = (reg_is_exc | reg_is_ertn) & reg_valid;
 
 assign debug_wb_pc_o       = reg_pc;
 assign debug_wb_rf_we_o    = {4{rf_we_o}};

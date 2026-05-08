@@ -28,6 +28,8 @@ mycpu_preif u_preif(
     .reset_i           (reset             ),
     .br_taken_i        (br_taken          ),
     .br_target_i       (br_target         ),
+    .flush_all_i       (flush_all         ),
+    .exc_entry_i       (csr_eentry        ),
     .pc_o              (pre_to_if_pc      ),
     .inst_sram_en_o    (inst_sram_en      ),
     .inst_sram_addr_o  (inst_sram_addr    ),
@@ -44,6 +46,7 @@ wire [31:0] br_target;
 mycpu_if u_if(
     .clk_i             (clk               ),
     .reset_i           (reset             ),
+    .flush_all_i       (flush_all         ),
     .br_taken_cancel_i (br_taken_cancel   ),
     .pc_i              (pre_to_if_pc      ),
     .inst_sram_rdata_i (inst_sram_rdata   ),
@@ -64,6 +67,7 @@ wire        id_allowin;
 mycpu_id u_id(
     .clk_i            (clk                   ),
     .reset_i          (reset                 ),
+    .flush_all_i       (flush_all            ),
     .pc_i             (if_to_id_pc           ),
     .inst_i           (if_to_id_inst         ),
     .pc_o             (id_to_ex_pc           ),
@@ -134,6 +138,7 @@ wire        id_to_ex_valid;
 mycpu_ex u_ex(
     .clk_i             (clk                   ),
     .reset_i           (reset                 ),
+    .flush_all_i       (flush_all             ),
     .pc_i              (id_to_ex_pc           ),
     .gr_we_i           (id_to_ex_gr_we        ),
     .csr_we_i          (id_to_ex_csr_we       ),
@@ -200,6 +205,7 @@ wire        ex_to_mem_valid;
 mycpu_mem u_mem(
     .clk_i             (clk                   ),
     .reset_i           (reset                 ),
+    .flush_all_i       (flush_all             ),
     .pc_i              (ex_to_mem_pc          ),
     .gr_we_i           (ex_to_mem_gr_we       ),
     .csr_we_i          (ex_to_mem_csr_we      ),
@@ -223,8 +229,8 @@ mycpu_mem u_mem(
     .write_csr_o       (mem_to_wb_write_csr   ),
     .csr_mask_o        (mem_to_wb_csr_mask    ),
     .dest_o            (mem_to_wb_dest        ),
-    .is_exc_o          (ex_to_mem_is_exc      ),
-    .exc_ecode_o       (ex_to_mem_exc_ecode   ),
+    .is_exc_o          (mem_to_wb_is_exc      ),
+    .exc_ecode_o       (mem_to_wb_exc_ecode   ),
     .is_ertn_o         (mem_to_wb_is_ertn     ),
     .valid_i           (ex_to_mem_valid       ),
     .wb_allowin_i      (wb_allowin            ),
@@ -250,6 +256,7 @@ wire [ 4:0] wb_dest;
 mycpu_wb u_wb(
     .clk_i               (clk                   ),
     .reset_i             (reset                 ),
+    .flush_all_i         (flush_all             ),
     .pc_i                (mem_to_wb_pc          ),
     .valid_i             (mem_to_wb_valid       ),
     .gr_we_i             (mem_to_wb_gr_we       ),
@@ -274,6 +281,7 @@ mycpu_wb u_wb(
     .wb_ecode_o          (wb_ecode              ),
     .wb_pc_o             (wb_pc                 ),
     .ertn_flush_o        (ertn_flush            ),
+    .flush_all_o         (flush_all             ),
     .debug_wb_pc_o       (debug_wb_pc           ),
     .debug_wb_rf_we_o    (debug_wb_rf_we        ),
     .debug_wb_rf_wnum_o  (debug_wb_rf_wnum      ),
@@ -281,6 +289,7 @@ mycpu_wb u_wb(
     .wb_allowin_o        (wb_allowin            )
 );
 
+wire        flush_all;
 wire        wb_exc;
 wire        wb_ecode;
 wire [31:0] wb_pc;
@@ -290,6 +299,7 @@ wire        csr_we;
 wire [13:0] csr_wnum;
 wire [31:0] csr_wmask;
 wire [31:0] csr_wvalue;
+wire [31:0] csr_eentry;
 
 wire [31:0] rf_raddr1;
 wire [31:0] rf_raddr2;
@@ -331,7 +341,9 @@ csr u_csr(
     .csr_wvalue     (csr_wvalue      ),
 
     .csr_rnum       (id_to_ex_csr_num),
-    .csr_rvalue     (csr_rvalue      )
+    .csr_rvalue     (csr_rvalue      ),
+
+    .csr_eentry     (csr_eentry      )
 );
 
 endmodule

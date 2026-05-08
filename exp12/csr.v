@@ -18,7 +18,9 @@ module csr(
     input  wire [31:0] csr_wvalue,
 
     input  wire [13:0] csr_rnum,
-    output wire [31:0] csr_rvalue
+    output wire [31:0] csr_rvalue,
+
+    output wire [31:0] csr_eentry
 );
 
 reg  [31:0] timer_cnt;
@@ -45,6 +47,7 @@ wire [31:0] csr_era_rvalue    = csr_era_pc;
 
 reg  [25:0] csr_eentry_va;
 wire [31:0] csr_eentry_rvalue = {csr_eentry_va, 6'd0};
+assign      csr_eentry        = csr_eentry_rvalue;
 
 reg  [31:0] csr_save0_data;
 wire [31:0] csr_save0_rvalue  = csr_save0_data;

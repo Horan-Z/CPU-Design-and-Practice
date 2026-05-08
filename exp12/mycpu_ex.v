@@ -1,6 +1,7 @@
 module mycpu_ex(
     input  wire        clk_i,
     input  wire        reset_i,
+    input  wire        flush_all_i,
 
     // 输入
     input  wire [31:0] pc_i,
@@ -92,7 +93,7 @@ reg [ 5:0] reg_exc_ecode;
 reg        reg_is_ertn;
 
 always @(posedge clk_i) begin
-    if (reset_i) begin
+    if (reset_i | flush_all_i) begin
         reg_valid <= 1'b0;
     end else if(ex_allowin_o) begin
         reg_valid <= valid_i;
