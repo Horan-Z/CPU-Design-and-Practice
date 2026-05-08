@@ -125,7 +125,7 @@ wire [31:0] id_to_ex_rkd_value;
 wire        id_to_ex_is_exc;
 wire        id_to_ex_exc_ecode;
 wire        id_to_ex_is_ertn;
-wire        id_to_ex_csr_num;
+wire [13:0] id_to_ex_csr_num;
 wire        id_to_ex_ex_not_ready;
 wire        ex_to_id_ex_not_ready;
 wire        ex_allowin;

@@ -144,7 +144,8 @@ assign div_start = reg_valid && (reg_div_op != 4'd0) && !div_complete;
 // 中转信号
 assign pc_o           = reg_pc;
 assign gr_we_o        = reg_gr_we;
-assign csr_we_o       = reg_csr_we;
+// 因为csr_we_o同时也做ID阶段的阻塞控制信号，所以这里不判断是否valid的话就会死锁
+assign csr_we_o       = reg_csr_we && reg_valid;
 assign csr_wnum_o     = reg_csr_wnum;
 assign csr_result_o   = reg_csr_result;
 assign csr_mask_o     = reg_csr_mask;

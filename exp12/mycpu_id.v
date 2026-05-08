@@ -96,7 +96,7 @@ assign     read_csr    = inst_csrrd  | inst_csrwr  | inst_csrxchg;
 assign     id_ready_go = ~( 
     (read_en_1 && (rf_raddr1 != 5'd0) && ((rf_raddr1 == ex_dest_i) && ex_not_ready_i)) |
     (read_en_2 && (rf_raddr2 != 5'd0) && ((rf_raddr2 == ex_dest_i) && ex_not_ready_i)) |
-    (read_csr  &&     ex_csr_we_i     &&        mem_csr_we_i       &&   wb_csr_we_i  )
+    (read_csr  && (    ex_csr_we_i    ||       mem_csr_we_i        ||  wb_csr_we_i  ))
 );
 
 reg [31:0] reg_pc;
