@@ -11,6 +11,7 @@ module mycpu_id(
     output wire [31:0] pc_o,
     output wire        gr_we_o,
     output wire        csr_we_o,
+    output wire        csr_rd_o,
     output wire        res_from_mem_o,
     output wire [ 4:0] dest_o,
     output wire [18:0] ex_op_o,
@@ -22,7 +23,7 @@ module mycpu_id(
     output wire        mem_sign_ext_o,
     output wire [31:0] rkd_value_o,
     output wire        is_exc_o,
-    output wire        exc_ecode_o,
+    output wire [ 5:0] exc_ecode_o,
     output wire        is_ertn_o,
     output wire [31:0] csr_mask_o,
 
@@ -92,6 +93,7 @@ assign     read_en_2   = inst_add_w  | inst_sub_w  | inst_slt    | inst_sltu   |
                          inst_bne    | inst_beq    ;
 
 assign     read_csr    = inst_csrrd  | inst_csrwr  | inst_csrxchg;
+assign     csr_rd_o    = read_csr;
 
 assign     id_ready_go = ~( 
     (read_en_1 && (rf_raddr1 != 5'd0) && ((rf_raddr1 == ex_dest_i) && ex_not_ready_i)) |
@@ -309,9 +311,7 @@ assign alu_op[ 7] = inst_xor  | inst_xori;
 assign alu_op[ 8] = inst_slli_w | inst_sll_w;
 assign alu_op[ 9] = inst_srli_w | inst_srl_w;
 assign alu_op[10] = inst_srai_w | inst_sra_w;
-// alu_op[11]会直接将src2输出为ex级result
-// 不激活src2_is_imm，就可以将rkd_value作为src2
-assign alu_op[11] = inst_lu12i_w| inst_csrwr | inst_csrxchg;
+assign alu_op[11] = inst_lu12i_w;
 
 assign mul_op[ 0] = inst_mul_w;
 assign mul_op[ 1] = inst_mulh_w;
@@ -371,7 +371,7 @@ assign src2_is_imm   = inst_slli_w |
 assign res_from_mem_o = inst_ld_w | inst_ld_b | inst_ld_bu | inst_ld_h | inst_ld_hu;
 assign dst_is_r1      = inst_bl;
 assign gr_we_o        = ~(inst_st_w | inst_st_b | inst_st_h | inst_beq | inst_bne | inst_b | inst_blt | inst_bltu | inst_bge | inst_bgeu) & reg_valid;
-assign csr_we_o       = (inst_csrrd | inst_csrwr | inst_csrxchg) & reg_valid;
+assign csr_we_o       = (inst_csrwr | inst_csrxchg) & reg_valid;
 assign mem_we_o       = (inst_st_w | inst_st_b | inst_st_h) & reg_valid;
 assign mem_size_o = ({3{inst_ld_b}}  & 3'b001) |
                     ({3{inst_ld_bu}} & 3'b001) |
@@ -446,7 +446,7 @@ assign br_taken_o  = br_taken;
 assign br_target_o = br_target;
 
 assign is_exc_o    = inst_syscall;
-assign exc_ecode_o = {6{inst_syscall}} & 5'h0b;
+assign exc_ecode_o = {6{inst_syscall}} & 6'h0b;
 assign is_ertn_o   = inst_ertn;
 assign csr_mask_o  = inst_csrxchg ? rj_value : 32'hffffffff;     
 assign csr_num_o   = reg_inst[23:10];

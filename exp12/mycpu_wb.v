@@ -14,7 +14,7 @@ module mycpu_wb(
     input  wire [31:0] csr_mask_i,
     input  wire [ 4:0] dest_i,
     input  wire        is_exc_i,
-    input  wire        exc_ecode_i,
+    input  wire [ 5:0] exc_ecode_i,
     input  wire        is_ertn_i,
 
     // 写寄存器
@@ -27,7 +27,7 @@ module mycpu_wb(
     output wire [31:0] csr_mask_o,
     output wire [31:0] csr_wvalue_o,
     output wire        wb_exc_o,
-    output wire        wb_ecode_o,
+    output wire [ 5:0] wb_ecode_o,
     output wire [31:0] wb_pc_o,
     output wire        ertn_flush_o,
     output wire        flush_all_o,
@@ -99,8 +99,8 @@ assign csr_we_o     = reg_csr_we && reg_valid;
 assign csr_wnum_o   = reg_csr_wnum;
 assign csr_mask_o   = reg_csr_mask;
 assign csr_wvalue_o = reg_write_csr;
-assign wb_exc_o     = reg_is_exc;
-assign exc_ecode_o  = reg_exc_ecode;
+assign wb_exc_o     = reg_is_exc & reg_valid;
+assign wb_ecode_o   = reg_exc_ecode;
 assign wb_pc_o      = reg_pc;
 assign ertn_flush_o = reg_is_ertn & reg_valid;
 assign flush_all_o  = (reg_is_exc | reg_is_ertn) & reg_valid;

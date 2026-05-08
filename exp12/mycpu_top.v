@@ -28,8 +28,10 @@ mycpu_preif u_preif(
     .reset_i           (reset             ),
     .br_taken_i        (br_taken          ),
     .br_target_i       (br_target         ),
+    .ertn_flush_i      (ertn_flush        ),
     .flush_all_i       (flush_all         ),
     .exc_entry_i       (csr_eentry        ),
+    .exc_rtn_addr_i    (csr_era           ),
     .pc_o              (pre_to_if_pc      ),
     .inst_sram_en_o    (inst_sram_en      ),
     .inst_sram_addr_o  (inst_sram_addr    ),
@@ -73,6 +75,7 @@ mycpu_id u_id(
     .pc_o             (id_to_ex_pc           ),
     .gr_we_o          (id_to_ex_gr_we        ),
     .csr_we_o         (id_to_ex_csr_we       ),
+    .csr_rd_o         (id_to_ex_csr_rd       ),
     .res_from_mem_o   (id_to_ex_res_from_mem ),
     .dest_o           (id_to_ex_dest         ),
     .ex_op_o          (id_to_ex_ex_op        ),
@@ -115,6 +118,7 @@ mycpu_id u_id(
 wire [31:0] id_to_ex_pc;
 wire        id_to_ex_gr_we;
 wire        id_to_ex_csr_we;
+wire        id_to_ex_csr_rd;
 wire [31:0] id_to_ex_csr_mask;
 wire        id_to_ex_res_from_mem;
 wire [ 4:0] id_to_ex_dest;
@@ -127,7 +131,7 @@ wire [ 2:0] id_to_ex_mem_size;
 wire        id_to_ex_mem_sign_ext;
 wire [31:0] id_to_ex_rkd_value;
 wire        id_to_ex_is_exc;
-wire        id_to_ex_exc_ecode;
+wire [ 5:0] id_to_ex_exc_ecode;
 wire        id_to_ex_is_ertn;
 wire [13:0] id_to_ex_csr_num;
 wire        id_to_ex_ex_not_ready;
@@ -143,6 +147,7 @@ mycpu_ex u_ex(
     .gr_we_i           (id_to_ex_gr_we        ),
     .csr_we_i          (id_to_ex_csr_we       ),
     .csr_wnum_i        (id_to_ex_csr_num      ),
+    .csr_rd_i          (id_to_ex_csr_rd       ),
     // id阶段发出csr_rnum并保持，所以可直接在这里读
     .csr_result_i      (csr_rvalue            ),
     .csr_mask_i        (id_to_ex_csr_mask     ),
@@ -175,6 +180,10 @@ mycpu_ex u_ex(
     .is_ertn_o         (ex_to_mem_is_ertn     ),
     .ex_not_ready_i    (id_to_ex_ex_not_ready ),
     .ex_not_ready_o    (ex_to_id_ex_not_ready ),
+    .mem_ertn_i        (mem_to_wb_is_ertn     ),
+    .wb_ertn_i         (ertn_flush            ),
+    .mem_is_exc_i      (mem_to_wb_is_exc      ),
+    .wb_is_exc_i       (wb_exc                ),
     .valid_i           (id_to_ex_valid        ),
     .mem_allowin_i     (mem_allowin           ),
     .ex_allowin_o      (ex_allowin            ),
@@ -197,7 +206,7 @@ wire [ 4:0] ex_to_mem_dest;
 wire [ 2:0] ex_to_mem_mem_size;
 wire        ex_to_mem_mem_sign_ext;
 wire        ex_to_mem_is_exc;
-wire        ex_to_mem_exc_ecode;
+wire [ 5:0] ex_to_mem_exc_ecode;
 wire        ex_to_mem_is_ertn;
 wire        mem_allowin;
 wire        ex_to_mem_valid;
@@ -247,7 +256,7 @@ wire [31:0] mem_to_wb_write_result;
 wire [31:0] mem_to_wb_write_csr;
 wire [31:0] mem_to_wb_csr_mask;
 wire        mem_to_wb_is_exc;
-wire        mem_to_wb_exc_ecode;
+wire [ 5:0] mem_to_wb_exc_ecode;
 wire        mem_to_wb_is_ertn;
 wire        wb_allowin;
 wire        mem_to_wb_valid;
@@ -291,7 +300,7 @@ mycpu_wb u_wb(
 
 wire        flush_all;
 wire        wb_exc;
-wire        wb_ecode;
+wire [ 5:0] wb_ecode;
 wire [31:0] wb_pc;
 wire        ertn_flush;
 wire [31:0] csr_rvalue;
@@ -300,6 +309,7 @@ wire [13:0] csr_wnum;
 wire [31:0] csr_wmask;
 wire [31:0] csr_wvalue;
 wire [31:0] csr_eentry;
+wire [31:0] csr_era;
 
 wire [31:0] rf_raddr1;
 wire [31:0] rf_raddr2;
@@ -343,7 +353,8 @@ csr u_csr(
     .csr_rnum       (id_to_ex_csr_num),
     .csr_rvalue     (csr_rvalue      ),
 
-    .csr_eentry     (csr_eentry      )
+    .csr_eentry     (csr_eentry      ),
+    .csr_era        (csr_era         )
 );
 
 endmodule

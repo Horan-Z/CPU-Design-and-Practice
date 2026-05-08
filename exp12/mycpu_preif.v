@@ -5,8 +5,10 @@ module mycpu_preif(
     // 输入
     input  wire        br_taken_i,
     input  wire [31:0] br_target_i,
+    input  wire        ertn_flush_i,
     input  wire        flush_all_i,
     input  wire [31:0] exc_entry_i,
+    input  wire [31:0] exc_rtn_addr_i,
 
     // 给下一级的数据
     output wire [31:0] pc_o,
@@ -30,15 +32,16 @@ assign seq_pc       = pc + 32'h4;
 
 // 如果br_taken，则当然要变为br_target
 // 如果没有br_taken，且if阶段阻塞中，那么需要保持当前pc，跟着if一起阻塞
-assign nextpc = flush_all_i  ? exc_entry_i :
-                br_taken_i   ? br_target_i : 
-                if_allowin_i ? seq_pc      :
-                               pc          ;
+assign nextpc = ertn_flush_i ? exc_rtn_addr_i :
+                flush_all_i  ? exc_entry_i    :
+                br_taken_i   ? br_target_i    : 
+                if_allowin_i ? seq_pc         :
+                               pc             ;
 
 always @(posedge clk_i) begin
     if (reset_i) begin
         pc <= 32'h1bfffffc;     //trick: to make nextpc be 0x1c000000 during reset 
-    end else if(if_allowin_i) begin
+    end else begin
         pc <= nextpc;
     end
 end

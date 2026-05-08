@@ -4,9 +4,9 @@ module csr(
     input  wire        clk,
     input  wire        reset,
 
-    input  wire        wb_pc,
+    input  wire [31:0] wb_pc,
     input  wire        wb_exc,
-    input  wire        wb_ecode,
+    input  wire [ 5:0] wb_ecode,
     input  wire        wb_esubcode,
     input  wire [ 7:0] hw_int_in,
     input  wire        ipi_int_in,
@@ -20,7 +20,8 @@ module csr(
     input  wire [13:0] csr_rnum,
     output wire [31:0] csr_rvalue,
 
-    output wire [31:0] csr_eentry
+    output wire [31:0] csr_eentry,
+    output wire [31:0] csr_era
 );
 
 reg  [31:0] timer_cnt;
@@ -35,7 +36,7 @@ wire [31:0] csr_crmd_rvalue   = {23'd0, csr_crmd_datm, csr_crmd_datf, csr_crmd_p
 
 reg         csr_prmd_pie;
 reg  [ 1:0] csr_prmd_pplv;
-wire [31:0] csr_prmd_rvalue   = {29'd0, csr_prmd_pplv, csr_prmd_pie};
+wire [31:0] csr_prmd_rvalue   = {29'd0, csr_prmd_pie, csr_prmd_pplv};
 
 reg  [12:0] csr_estat_is;
 reg  [ 5:0] csr_estat_ecode;
@@ -44,6 +45,7 @@ wire [31:0] csr_estat_rvalue  = {1'd0, csr_estat_esubcode, csr_estat_ecode, 3'd0
 
 reg  [31:0] csr_era_pc;
 wire [31:0] csr_era_rvalue    = csr_era_pc;
+assign      csr_era           = csr_era_rvalue;
 
 reg  [25:0] csr_eentry_va;
 wire [31:0] csr_eentry_rvalue = {csr_eentry_va, 6'd0};

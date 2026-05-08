@@ -8,6 +8,7 @@ module mycpu_ex(
     input  wire        gr_we_i,
     input  wire        csr_we_i,
     input  wire [13:0] csr_wnum_i,
+    input  wire        csr_rd_i,
     input  wire [31:0] csr_result_i,
     input  wire [31:0] csr_mask_i,
     input  wire        res_from_mem_i,
@@ -21,7 +22,7 @@ module mycpu_ex(
     input  wire        mem_sign_ext_i,
     input  wire [31:0] rkd_value_i,
     input  wire        is_exc_i,
-    input  wire        exc_ecode_i,
+    input  wire [ 5:0] exc_ecode_i,
     input  wire        is_ertn_i,
 
     // 给下一级的数据
@@ -37,13 +38,19 @@ module mycpu_ex(
     output wire [ 2:0] mem_size_o,
     output wire        mem_sign_ext_o,
     output wire        is_exc_o,
-    output wire        exc_ecode_o,
+    output wire [ 5:0] exc_ecode_o,
     output wire        is_ertn_o,
 
     // 流水线前递用
     // 标记ex阶段无法获得待写入的寄存器值
     input  wire        ex_not_ready_i,
     output wire        ex_not_ready_o,
+
+    // 用于使st指令失能
+    input  wire        mem_ertn_i,
+    input  wire        wb_ertn_i,
+    input  wire        mem_is_exc_i,
+    input  wire        wb_is_exc_i,
 
     // 控制信号
     input  wire        valid_i,
@@ -70,6 +77,7 @@ reg [31:0] reg_pc;
 reg        reg_valid;
 reg        reg_gr_we;
 reg        reg_csr_we;
+reg        reg_csr_rd;
 reg [13:0] reg_csr_wnum;
 reg [31:0] reg_csr_result;
 reg [31:0] reg_csr_mask;
@@ -105,8 +113,9 @@ always @(posedge clk_i) begin
         reg_pc           <= pc_i;
         reg_gr_we        <= gr_we_i;
         reg_csr_we       <= csr_we_i;
+        reg_csr_rd       <= csr_rd_i;
         reg_csr_wnum     <= csr_wnum_i;
-        reg_csr_result   <= csr_result_i;
+        reg_csr_result     <= csr_result_i;
         reg_csr_mask     <= csr_mask_i;
         reg_res_from_mem <= res_from_mem_i;
         reg_dest         <= dest_i;
@@ -148,7 +157,7 @@ assign gr_we_o        = reg_gr_we;
 // 因为csr_we_o同时也做ID阶段的阻塞控制信号，所以这里不判断是否valid的话就会死锁
 assign csr_we_o       = reg_csr_we && reg_valid;
 assign csr_wnum_o     = reg_csr_wnum;
-assign csr_result_o   = reg_csr_result;
+assign csr_result_o   = reg_rkd_value;
 assign csr_mask_o     = reg_csr_mask;
 assign res_from_mem_o = reg_res_from_mem;
 
@@ -182,7 +191,9 @@ assign byte_we_mask = ({4{alu_result[1:0] == 2'b00}} & 4'b0001) |
                       ({4{alu_result[1:0] == 2'b11}} & 4'b1000) ;
 assign half_we_mask = ({4{alu_result[1]   == 1'b0}}  & 4'b0011) |
                       ({4{alu_result[1]   == 1'b1}}  & 4'b1100) ;
-assign data_sram_we_o = {4{reg_mem_we & ex_to_mem_valid_o & mem_allowin_i}} & (
+assign data_sram_we_o = {4{  reg_mem_we & ex_to_mem_valid_o & mem_allowin_i
+                           & ~(mem_is_exc_i | wb_is_exc_i | mem_ertn_i | wb_ertn_i)}} 
+                      & (
                             ({4{reg_mem_size[0]}} & byte_we_mask) |
                             ({4{reg_mem_size[1]}} & half_we_mask) |
                             ({4{reg_mem_size[2]}} & 4'b1111)
@@ -195,7 +206,8 @@ assign data_sram_wdata_o = ({32{reg_mem_size[0]}} & {4{reg_rkd_value[ 7:0]}}) |
 
 assign ex_result_o       = {32{reg_alu_op != 12'd0}} & alu_result |
                            {32{reg_mul_op !=  3'd0}} & mul_result |
-                           {32{reg_div_op !=  4'd0}} & div_result ;
+                           {32{reg_div_op !=  4'd0}} & div_result |
+                           {32{reg_csr_rd}}          & reg_csr_result;
 
 alu u_alu(
     .alu_op     (reg_alu_op  ),
