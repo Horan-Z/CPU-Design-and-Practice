@@ -17,7 +17,7 @@ module csr(
     input  wire [31:0] csr_wmask,
     input  wire [31:0] csr_wvalue,
 
-    input  wire [13:0] csr_rnum;
+    input  wire [13:0] csr_rnum,
     output wire [31:0] csr_rvalue
 );
 
@@ -138,7 +138,7 @@ end
 always @(posedge clk) begin
     if(csr_we && csr_wnum==`CSR_EENTRY) begin
         csr_eentry_va <=   (csr_wmask[`CSR_EENTRY_VA] & csr_wvalue[`CSR_EENTRY_VA])
-                         | (~csr_wmask[`CSR_EENTRY_VA] & csr_eentry_va;)
+                         | (~csr_wmask[`CSR_EENTRY_VA] & csr_eentry_va);
     end
 end
 

@@ -26,7 +26,7 @@ module mycpu_mem(
     output wire [13:0] csr_wnum_o,
     output wire [31:0] write_result_o,
     output wire [31:0] write_csr_o,
-    output wire [31:0] csr_mask_o;
+    output wire [31:0] csr_mask_o,
     output wire [ 4:0] dest_o,
     output wire        is_exc_o,
     output wire        exc_ecode_o,
@@ -110,7 +110,7 @@ assign mem_result =
 // 具体表现为如果后面流水阻塞，需要通过控制信号保证对sram的操作仅执行一次
 // 对sram的操作应发生在ex_to_mem_valid拉高的那一个时刻，即ex流水转向mem流水的时刻
 assign write_result_o = reg_csr_we ? reg_csr_result : reg_res_from_mem ? mem_result : reg_ex_result; // 写regfile
-assign write_csr_o    = reg_ex_result // 写csr
+assign write_csr_o    = reg_ex_result; // 写csr
 
 // 中转信号
 assign pc_o           = reg_pc;

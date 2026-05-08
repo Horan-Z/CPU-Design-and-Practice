@@ -41,5 +41,6 @@
 `define CSR_ERA_PC      31: 0
 `define CSR_EENTRY_VA   31: 6
 `define CSR_SAVE_DATA   31: 0
+`define CSR_TICLR_CLR    0: 0
 
 `endif // CSR_DEFINES_VH

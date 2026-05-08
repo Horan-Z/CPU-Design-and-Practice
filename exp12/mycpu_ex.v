@@ -29,7 +29,7 @@ module mycpu_ex(
     output wire        csr_we_o,
     output wire [13:0] csr_wnum_o,
     output wire [31:0] csr_result_o,
-    output wire [31:0] csr_mask_o;
+    output wire [31:0] csr_mask_o,
     output wire        res_from_mem_o,
     output wire [ 4:0] dest_o,
     output wire [31:0] ex_result_o,
