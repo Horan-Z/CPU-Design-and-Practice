@@ -51,7 +51,7 @@ reg        reg_valid;
 reg        reg_gr_we;
 reg        reg_csr_we;
 reg [13:0] reg_csr_wnum;
-reg        reg_csr_result;
+reg [31:0] reg_csr_result;
 reg [31:0] reg_csr_mask;
 reg        reg_res_from_mem;
 reg [31:0] reg_ex_result;

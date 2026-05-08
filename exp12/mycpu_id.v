@@ -10,7 +10,6 @@ module mycpu_id(
     output wire [31:0] pc_o,
     output wire        gr_we_o,
     output wire        csr_we_o,
-    output wire [31:0] csr_result,
     output wire        res_from_mem_o,
     output wire [ 4:0] dest_o,
     output wire [18:0] ex_op_o,
