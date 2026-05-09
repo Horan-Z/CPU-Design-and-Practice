@@ -37,10 +37,18 @@
 `define CSR_CRMD_IE      2: 2
 `define CSR_PRMD_PPLV    1: 0
 `define CSR_PRMD_PIE     2: 2
+`define CSR_ECFG_LIE    12: 0
 `define CSR_ESTAT_IS10   1: 0
 `define CSR_ERA_PC      31: 0
 `define CSR_EENTRY_VA   31: 6
 `define CSR_SAVE_DATA   31: 0
+`define CSR_TID_TID     31: 0
+`define CSR_TCFG_EN      0: 0
+`define CSR_TCFG_PERIOD  1: 1
+`define CSR_TCFG_INITV  31: 2
 `define CSR_TICLR_CLR    0: 0
+
+`define ECODE_ADE       6'h08
+`define ECODE_ALE       6'h09
 
 `endif // CSR_DEFINES_VH

@@ -303,6 +303,7 @@ wire        wb_exc;
 wire [ 5:0] wb_ecode;
 wire [31:0] wb_pc;
 wire        ertn_flush;
+wire [31:0] wb_vaddr;
 wire [31:0] csr_rvalue;
 wire        csr_we;
 wire [13:0] csr_wnum;
@@ -310,6 +311,7 @@ wire [31:0] csr_wmask;
 wire [31:0] csr_wvalue;
 wire [31:0] csr_eentry;
 wire [31:0] csr_era;
+wire        has_int;
 
 wire [31:0] rf_raddr1;
 wire [31:0] rf_raddr2;
@@ -333,7 +335,6 @@ regfile u_regfile(
 csr u_csr(
     .clk            (clk             ),
     .reset          (reset           ),
-
     .wb_pc          (wb_pc           ),
     .wb_exc         (wb_exc          ),
     .wb_ecode       (wb_ecode        ),
@@ -344,17 +345,16 @@ csr u_csr(
     .hw_int_in      (8'd0            ),
     .ipi_int_in     (1'd0            ),
     .ertn_flush     (ertn_flush      ),
-
+    .wb_vaddr       (wb_vaddr        ),
     .csr_we         (csr_we          ),
     .csr_wnum       (csr_wnum        ),
     .csr_wmask      (csr_wmask       ),
     .csr_wvalue     (csr_wvalue      ),
-
     .csr_rnum       (id_to_ex_csr_num),
     .csr_rvalue     (csr_rvalue      ),
-
     .csr_eentry     (csr_eentry      ),
-    .csr_era        (csr_era         )
+    .csr_era        (csr_era         ),
+    .has_int        (has_int         )
 );
 
 endmodule
