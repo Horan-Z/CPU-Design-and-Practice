@@ -24,6 +24,7 @@ module mycpu_preif(
 
 wire        pre_ready_go = 1'b1;
 
+reg         reg_valid;
 reg  [31:0] pc;
 wire [31:0] seq_pc;
 wire [31:0] nextpc;
@@ -40,9 +41,11 @@ assign nextpc = ertn_flush_i ? exc_rtn_addr_i :
 
 always @(posedge clk_i) begin
     if (reset_i) begin
-        pc <= 32'h1bfffffc;     //trick: to make nextpc be 0x1c000000 during reset 
+        pc <= 32'h1bfffffc;     //trick: to make nextpc be 0x1c000000 during reset
+        reg_valid <= 1'b0;
     end else begin
         pc <= nextpc;
+        reg_valid <= 1'b1;
     end
 end
 
@@ -54,6 +57,6 @@ assign pc_o             = pc;
 
 // 确认跳转的当前周期的pc还是上一周期的nextpc，即seq_pc
 // 需等一周期pc才会变成br_target_i
-assign pre_to_if_valid_o = pre_ready_go & !br_taken_i;
+assign pre_to_if_valid_o = pre_ready_go & !br_taken_i & reg_valid;
 
 endmodule
