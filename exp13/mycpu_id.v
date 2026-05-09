@@ -6,6 +6,9 @@ module mycpu_id(
     // 输入
     input  wire [31:0] pc_i,
     input  wire [31:0] inst_i,
+    input  wire        is_exc_i,
+    input  wire [ 5:0] exc_ecode_i,
+    input  wire        has_int_i,
 
     // 给下一级的数据
     output wire [31:0] pc_o,
@@ -14,7 +17,7 @@ module mycpu_id(
     output wire        csr_rd_o,
     output wire        res_from_mem_o,
     output wire [ 4:0] dest_o,
-    output wire [18:0] ex_op_o,
+    output wire [20:0] ex_op_o,
     output wire [31:0] ex_src1_o,
     output wire [31:0] ex_src2_o,
     output wire        mem_en_o,
@@ -92,7 +95,7 @@ assign     read_en_2   = inst_add_w  | inst_sub_w  | inst_slt    | inst_sltu   |
                          inst_st_w   | inst_st_b   | inst_st_h   |
                          inst_bne    | inst_beq    ;
 
-assign     read_csr    = inst_csrrd  | inst_csrwr  | inst_csrxchg;
+assign     read_csr    = inst_csrrd | inst_csrwr | inst_csrxchg | inst_rdcntid;
 assign     csr_rd_o    = read_csr;
 
 assign     id_ready_go = ~( 
@@ -103,6 +106,8 @@ assign     id_ready_go = ~(
 
 reg [31:0] reg_pc;
 reg [31:0] reg_inst;
+reg        reg_is_exc;
+reg [ 5:0] reg_exc_ecode;
 reg        reg_valid;
 
 always @(posedge clk_i) begin
@@ -119,8 +124,10 @@ end
 
 always @(posedge clk_i) begin
     if(id_allowin_o && valid_i) begin
-        reg_pc   <= pc_i;
-        reg_inst <= inst_i;
+        reg_pc        <= pc_i;
+        reg_inst      <= inst_i;
+        reg_is_exc    <= is_exc_i;
+        reg_exc_ecode <= exc_ecode_i;
     end
 end
 
@@ -135,6 +142,7 @@ assign br_taken_cancel_o = br_taken & id_to_ex_valid_o & ex_allowin_i;
 wire [11:0] alu_op;
 wire [ 2:0] mul_op;
 wire [ 3:0] div_op;
+wire [ 1:0] rdcnt_op;
 wire        load_op;
 wire        src1_is_pc;
 wire        src2_is_imm;
@@ -212,10 +220,16 @@ wire        inst_bgeu;
 wire        inst_lu12i_w;
 wire        inst_pcaddu12i;
 wire        inst_ertn;
+wire        inst_break;
 wire        inst_syscall;
 wire        inst_csrwr;
 wire        inst_csrrd;
 wire        inst_csrxchg;
+wire        inst_rdcntid;
+wire        inst_rdcntvl_w;
+wire        inst_rdcntvh_w;
+
+wire        inst_valid;
 
 wire        need_ui5;
 wire        need_si12;
@@ -245,10 +259,14 @@ assign i20  = reg_inst[24: 5];
 assign i16  = reg_inst[25:10];
 assign i26  = {reg_inst[ 9: 0], reg_inst[25:10]};
 
+assign inst_rdcntid   = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h0] & op_19_15_d[5'h00] & rk == 5'h18 & rd == 5'h00;
+assign inst_rdcntvl_w = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h0] & op_19_15_d[5'h00] & rk == 5'h18 & rj == 5'h00;
+assign inst_rdcntvh_w = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h0] & op_19_15_d[5'h00] & rk == 5'h19 & rj == 5'h00;
 assign inst_csrwr  = op_31_26_d[6'h01] & rj == 5'd1;
 assign inst_csrrd  = op_31_26_d[6'h01] & rj == 5'd0;
 assign inst_csrxchg= op_31_26_d[6'h01] & (rj != 5'd0 && rj != 5'd1);
-assign inst_ertn   = op_31_26_d[6'h01] & op_25_22_d[4'h9] & op_21_20_d[2'h0] & op_19_15_d[5'h10] & op_14_10_d[5'h0e];
+assign inst_ertn   = op_31_26_d[6'h01] & op_25_22_d[4'h9] & op_21_20_d[2'h0] & op_19_15_d[5'h10] & rk == 5'h0e;
+assign inst_break  = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h2] & op_19_15_d[5'h14];
 assign inst_syscall= op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h2] & op_19_15_d[5'h16];
 assign inst_add_w  = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h1] & op_19_15_d[5'h00];
 assign inst_sub_w  = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h1] & op_19_15_d[5'h02];
@@ -296,6 +314,62 @@ assign inst_bge    = op_31_26_d[6'h19];
 assign inst_bgeu   = op_31_26_d[6'h1b];
 assign inst_lu12i_w= op_31_26_d[6'h05] & ~reg_inst[25];
 assign inst_pcaddu12i = op_31_26_d[6'h07] & ~reg_inst[25];
+
+assign inst_valid = inst_add_w
+                  | inst_sub_w
+                  | inst_mul_w
+                  | inst_mulh_w
+                  | inst_mulh_wu
+                  | inst_div_w
+                  | inst_div_wu
+                  | inst_mod_w
+                  | inst_mod_wu
+                  | inst_slt
+                  | inst_slti
+                  | inst_sltu
+                  | inst_sltui
+                  | inst_nor
+                  | inst_and
+                  | inst_andi
+                  | inst_or
+                  | inst_ori
+                  | inst_xor
+                  | inst_xori
+                  | inst_sll_w
+                  | inst_slli_w
+                  | inst_srl_w
+                  | inst_srli_w
+                  | inst_sra_w
+                  | inst_srai_w
+                  | inst_addi_w
+                  | inst_ld_w
+                  | inst_ld_b
+                  | inst_ld_bu
+                  | inst_ld_h
+                  | inst_ld_hu
+                  | inst_st_w
+                  | inst_st_b
+                  | inst_st_h
+                  | inst_jirl
+                  | inst_b
+                  | inst_bl
+                  | inst_beq
+                  | inst_bne
+                  | inst_blt
+                  | inst_bltu
+                  | inst_bge
+                  | inst_bgeu
+                  | inst_lu12i_w
+                  | inst_pcaddu12i
+                  | inst_ertn
+                  | inst_break
+                  | inst_syscall
+                  | inst_csrwr
+                  | inst_csrrd
+                  | inst_csrxchg
+                  | inst_rdcntid
+                  | inst_rdcntvl_w
+                  | inst_rdcntvh_w;
 
 assign load_op    = inst_ld_w | inst_ld_b | inst_ld_bu | inst_ld_h | inst_ld_hu;
 
@@ -370,6 +444,7 @@ assign src2_is_imm   = inst_slli_w |
 
 assign res_from_mem_o = inst_ld_w | inst_ld_b | inst_ld_bu | inst_ld_h | inst_ld_hu;
 assign dst_is_r1      = inst_bl;
+assign dst_is_rj      = inst_rdcntid;
 assign gr_we_o        = ~(inst_st_w | inst_st_b | inst_st_h | inst_beq | inst_bne | inst_b | inst_blt | inst_bltu | inst_bge | inst_bgeu) & reg_valid;
 assign csr_we_o       = (inst_csrwr | inst_csrxchg) & reg_valid;
 assign mem_we_o       = (inst_st_w | inst_st_b | inst_st_h) & reg_valid;
@@ -389,7 +464,7 @@ assign pc_o           = reg_pc;
 // 如果不需要写入，将dest设置为0号寄存器
 // 因为0号寄存器不可能写入，相当于标记了不需要写入
 // 省下了gr_we信号回传
-assign dest_o         = gr_we_o | csr_we_o ? (dst_is_r1 ? 5'd1 : rd) : 5'd0;
+assign dest_o         = gr_we_o | csr_we_o ? (dst_is_r1 ? 5'd1 : (dst_is_rj? rj : rd)) : 5'd0;
 
 assign ex_not_ready_o = inst_ld_w | inst_ld_b | inst_ld_bu | inst_ld_h | inst_ld_hu;
 
@@ -439,17 +514,25 @@ assign br_target = (inst_beq | inst_bne | inst_bl | inst_b | inst_blt | inst_blt
 
 assign ex_src1_o = src1_is_pc  ? reg_pc[31:0] : rj_value;
 assign ex_src2_o = src2_is_imm ? imm : rkd_value;
-assign ex_op_o   = {div_op, mul_op, alu_op};
+assign ex_op_o   = {rdcnt_op, div_op, mul_op, alu_op};
 
 assign rkd_value_o = rkd_value;
 assign br_taken_o  = br_taken;
 assign br_target_o = br_target;
 
-assign is_exc_o    = inst_syscall;
-assign exc_ecode_o = {6{inst_syscall}} & 6'h0b;
+assign is_exc_o    = has_int_i | reg_is_exc | inst_break | inst_syscall | ~inst_valid;
+assign exc_ecode_o = has_int_i  ? 6'h00         :
+                     reg_is_exc ? reg_exc_ecode :
+                                | {6{inst_break  }} & 6'h0c
+                                | {6{inst_syscall}} & 6'h0b
+                                | {6{~inst_valid }} & 6'h0d;
+
 assign is_ertn_o   = inst_ertn;
 assign csr_mask_o  = inst_csrxchg ? rj_value : 32'hffffffff;     
-assign csr_num_o   = reg_inst[23:10];
+assign csr_num_o   = inst_rdcntid ? 14'h040  : reg_inst[23:10];
+
+assign rdcnt_op    = {2{inst_rdcntvh_w}} & 2'b10
+                   | {2{inst_rdcntvl_w}} & 2'b01;
 
 assign rf_raddr1_o = rf_raddr1; // rj
 assign rf_rdata1   = rf_raddr1 != 5'd0 && rf_raddr1 ==  ex_dest_i ?  ex_write_reg_i :
@@ -470,6 +553,5 @@ decoder_6_64 u_dec0(.in(op_31_26 ), .out(op_31_26_d ));
 decoder_4_16 u_dec1(.in(op_25_22 ), .out(op_25_22_d ));
 decoder_2_4  u_dec2(.in(op_21_20 ), .out(op_21_20_d ));
 decoder_5_32 u_dec3(.in(op_19_15 ), .out(op_19_15_d ));
-decoder_5_32 u_dec4(.in(op_14_10 ), .out(op_14_10_d ));
 
 endmodule

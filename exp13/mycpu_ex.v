@@ -13,7 +13,7 @@ module mycpu_ex(
     input  wire [31:0] csr_mask_i,
     input  wire        res_from_mem_i,
     input  wire [ 4:0] dest_i,
-    input  wire [18:0] ex_op_i,
+    input  wire [20:0] ex_op_i,
     input  wire [31:0] ex_src1_i,
     input  wire [31:0] ex_src2_i,
     input  wire        mem_en_i,
@@ -24,6 +24,8 @@ module mycpu_ex(
     input  wire        is_exc_i,
     input  wire [ 5:0] exc_ecode_i,
     input  wire        is_ertn_i,
+    input  wire [31:0] stable_cnth_i,
+    input  wire [31:0] stable_cntl_i,
 
     // 给下一级的数据
     output wire [31:0] pc_o,
@@ -86,6 +88,7 @@ reg [ 4:0] reg_dest;
 reg [11:0] reg_alu_op;
 reg [ 2:0] reg_mul_op;
 reg [ 3:0] reg_div_op;
+reg [ 1:0] reg_rdcnt_op;
 reg [31:0] reg_cal_src1;
 reg [31:0] reg_cal_src2;
 reg [31:0] reg_mul_src1;
@@ -122,6 +125,7 @@ always @(posedge clk_i) begin
         reg_alu_op       <= ex_op_i[11:0];
         reg_mul_op       <= ex_op_i[14:12];
         reg_div_op       <= ex_op_i[18:15];
+        reg_rdcnt_op     <= ex_op_i[20:19];
         reg_cal_src1     <= ex_src1_i;
         reg_cal_src2     <= ex_src2_i;
         reg_mul_src1     <= ex_src1_i;
@@ -204,10 +208,12 @@ assign data_sram_wdata_o = ({32{reg_mem_size[0]}} & {4{reg_rkd_value[ 7:0]}}) |
                            ({32{reg_mem_size[1]}} & {2{reg_rkd_value[15:0]}}) |
                            ({32{reg_mem_size[2]}} & reg_rkd_value);
 
-assign ex_result_o       = {32{reg_alu_op != 12'd0}} & alu_result |
-                           {32{reg_mul_op !=  3'd0}} & mul_result |
-                           {32{reg_div_op !=  4'd0}} & div_result |
-                           {32{reg_csr_rd}}          & reg_csr_result;
+assign ex_result_o       = {32{reg_alu_op != 12'd0}} & alu_result
+                         | {32{reg_mul_op !=  3'd0}} & mul_result
+                         | {32{reg_div_op !=  4'd0}} & div_result
+                         | {32{reg_rdcnt_op[1]    }} & stable_cnth_i
+                         | {32{reg_rdcnt_op[0]    }} & stable_cntl_i
+                         | {32{reg_csr_rd         }} & reg_csr_result;
 
 alu u_alu(
     .alu_op     (reg_alu_op  ),

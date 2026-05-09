@@ -54,14 +54,18 @@ mycpu_if u_if(
     .inst_sram_rdata_i (inst_sram_rdata   ),
     .inst_o            (if_to_id_inst     ),
     .pc_o              (if_to_id_pc       ),
+    .is_exc_o          (if_to_id_is_exc   ),
+    .exc_ecode_o       (if_to_id_exc_code ),
     .valid_i           (pre_to_if_valid   ),
     .id_allowin_i      (id_allowin        ),
-    .if_allowin_o      (if_allowin        ),
+    .if_allowin_o      (if_allowin        ), 
     .if_to_id_valid_o  (if_to_id_valid    )
 );
 
 wire [31:0] if_to_id_pc;
 wire [31:0] if_to_id_inst;
+wire        if_to_id_is_exc;
+wire [ 5:0] if_to_id_exc_code;
 wire        br_taken_cancel;
 wire        if_to_id_valid;
 wire        id_allowin;
@@ -69,9 +73,12 @@ wire        id_allowin;
 mycpu_id u_id(
     .clk_i            (clk                   ),
     .reset_i          (reset                 ),
-    .flush_all_i       (flush_all            ),
+    .flush_all_i      (flush_all             ),
     .pc_i             (if_to_id_pc           ),
     .inst_i           (if_to_id_inst         ),
+    .is_exc_i         (if_to_id_is_exc       ),
+    .exc_ecode_i      (if_to_id_exc_code     ),
+    .has_int_i        (has_int               ),
     .pc_o             (id_to_ex_pc           ),
     .gr_we_o          (id_to_ex_gr_we        ),
     .csr_we_o         (id_to_ex_csr_we       ),
@@ -122,7 +129,7 @@ wire        id_to_ex_csr_rd;
 wire [31:0] id_to_ex_csr_mask;
 wire        id_to_ex_res_from_mem;
 wire [ 4:0] id_to_ex_dest;
-wire [18:0] id_to_ex_ex_op;
+wire [20:0] id_to_ex_ex_op;
 wire [31:0] id_to_ex_ex_src1;
 wire [31:0] id_to_ex_ex_src2;
 wire        id_to_ex_mem_en;
@@ -164,6 +171,8 @@ mycpu_ex u_ex(
     .is_exc_i          (id_to_ex_is_exc       ),
     .exc_ecode_i       (id_to_ex_exc_ecode    ),
     .is_ertn_i         (id_to_ex_is_ertn      ),
+    .stable_cnth_i     (stable_cnth           ),
+    .stable_cntl_i     (stable_cntl           ),
     .pc_o              (ex_to_mem_pc          ),
     .gr_we_o           (ex_to_mem_gr_we       ),
     .csr_we_o          (ex_to_mem_csr_we      ),
@@ -356,5 +365,15 @@ csr u_csr(
     .csr_era        (csr_era         ),
     .has_int        (has_int         )
 );
+
+wire [31:0] stable_cnth;
+wire [31:0] stable_cntl;
+
+stable_counter u_scnt(
+    .clk            (clk             ),
+    .reset          (reset           ),
+    .cnth           (stable_cnth     ),
+    .cntl           (stable_cntl     )
+)
 
 endmodule

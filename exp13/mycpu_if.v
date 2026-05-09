@@ -11,6 +11,8 @@ module mycpu_if(
     // 给下一级的数据
     output wire [31:0] inst_o,
     output wire [31:0] pc_o,
+    output wire        is_exc_o,
+    output wire [ 5:0] exc_ecode_o,
 
     // 控制信号
     input  wire        valid_i,
@@ -39,6 +41,10 @@ end
 
 assign inst_o           = reg_inst;
 assign pc_o             = reg_pc;
+
+assign exc_adef         = (reg_pc[1:0] != 2'b00);
+assign is_exc_o         = exc_adef;
+assign exc_ecode_o      = {6{exc_adef}} & 6'h08;
 
 assign if_allowin_o = !reg_valid || (if_ready_go && id_allowin_i);
 assign if_to_id_valid_o = reg_valid & if_ready_go;

@@ -46,7 +46,9 @@ always @(posedge clk_i) begin
     end
 end
 
-assign inst_sram_en_o   = ~reset_i;
+// 非对齐时取消读使能，但是不进行标记，因为preif不算流水线阶段
+assign nextpc_aligned   = (nextpc[1:0] == 2'b00);
+assign inst_sram_en_o   = ~reset_i & nextpc_aligned;
 assign inst_sram_addr_o = nextpc;
 assign pc_o             = pc;
 
