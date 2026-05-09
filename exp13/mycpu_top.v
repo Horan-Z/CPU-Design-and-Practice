@@ -374,6 +374,6 @@ stable_counter u_scnt(
     .reset          (reset           ),
     .cnth           (stable_cnth     ),
     .cntl           (stable_cntl     )
-)
+);
 
 endmodule

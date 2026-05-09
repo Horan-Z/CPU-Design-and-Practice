@@ -108,8 +108,8 @@ assign csr_rvalue = {32{csr_rnum == `CSR_CRMD  }} & csr_crmd_rvalue
 always @(posedge clk) begin
     if(reset) begin
         timer_cnt <= 32'hffffffff;
-    end else if(csr_we && csr_num == `CSR_TCFG && tcfg_next_value[`CSR_TCFG_EN]) begin
-        timer_cnt <= {tcfg_next_value[`CSR_TCFG_INITVAL], 2'b0};
+    end else if(csr_we && csr_wnum == `CSR_TCFG && tcfg_next_value[`CSR_TCFG_EN]) begin
+        timer_cnt <= {tcfg_next_value[`CSR_TCFG_INITV], 2'b0};
     end else if(csr_tcfg_en && timer_cnt != 32'hffffffff) begin
         if(timer_cnt[31:0] == 32'b0 && csr_tcfg_periodic) begin
             timer_cnt <= {csr_tcfg_initval, 2'b0};
@@ -154,7 +154,7 @@ end
 always @(posedge clk) begin
     if(reset) begin
         csr_ecfg_lie <= 13'b0;
-    end else if(csr_we && csr_num == `CSR_ECFG) begin
+    end else if(csr_we && csr_wnum == `CSR_ECFG) begin
         csr_ecfg_lie <=   (csr_wmask[`CSR_ECFG_LIE] & 13'h1bff & csr_wvalue[`CSR_ECFG_LIE])
                         | (~csr_wmask[`CSR_ECFG_LIE] & 13'h1bff & csr_ecfg_lie);
     end
@@ -198,7 +198,7 @@ end
 
 assign wb_ex_addr_err = wb_ecode == `ECODE_ADE || wb_ecode == `ECODE_ALE;
 always @(posedge clk) begin
-    if(wb_ex && wb_ex_addr_err) begin
+    if(wb_exc && wb_ex_addr_err) begin
         // la32r v1.03指令集手册中已明确移除ADEM异常
         csr_badv_vaddr <= wb_ecode == `ECODE_ADE ? wb_pc : wb_vaddr;
     end
@@ -236,7 +236,7 @@ end
 always @(posedge clk) begin
     if(reset) begin
         csr_tid_tid <= csr_cpuid_rvalue;
-    end else if(csr_we && csr_num == `CSR_TID) begin
+    end else if(csr_we && csr_wnum == `CSR_TID) begin
         csr_tid_tid <=   (csr_wmask[`CSR_TID_TID] & csr_wvalue[`CSR_TID_TID])
                        | (~csr_wmask[`CSR_TID_TID] & csr_tid_tid);
     end
@@ -245,12 +245,12 @@ end
 always @(posedge clk) begin
     if(reset) begin
         csr_tcfg_en <= 1'b0;
-    end else if(csr_we && csr_num == `CSR_TCFG) begin
+    end else if(csr_we && csr_wnum == `CSR_TCFG) begin
         csr_tcfg_en <=   (csr_wmask[`CSR_TCFG_EN] & csr_wvalue[`CSR_TCFG_EN])
                        | (~csr_wmask[`CSR_TCFG_EN] & csr_tcfg_en);
     end
     
-    if(csr_we && csr_num == `CSR_TCFG) begin
+    if(csr_we && csr_wnum == `CSR_TCFG) begin
         csr_tcfg_periodic <=   (csr_wmask[`CSR_TCFG_PERIOD] & csr_wvalue[`CSR_TCFG_PERIOD])
                              | (~csr_wmask[`CSR_TCFG_PERIOD] & csr_tcfg_periodic);
                              
