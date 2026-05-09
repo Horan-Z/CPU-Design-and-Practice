@@ -19,6 +19,7 @@ module mycpu_mem(
     input  wire        is_exc_i,
     input  wire [ 5:0] exc_ecode_i,
     input  wire        is_ertn_i,
+    input  wire [31:0] wb_vaddr_i,
 
     // 给下一级的数据
     output wire [31:0] pc_o,
@@ -32,6 +33,7 @@ module mycpu_mem(
     output wire        is_exc_o,
     output wire [ 5:0] exc_ecode_o,
     output wire        is_ertn_o,
+    output wire [31:0] wb_vaddr_o,
 
     // 控制信号
     input  wire        valid_i,
@@ -62,6 +64,7 @@ reg        reg_mem_sign_ext;
 reg        reg_is_exc;
 reg [ 5:0] reg_exc_ecode;
 reg        reg_is_ertn;
+reg [31:0] reg_wb_vaddr;
 
 always @(posedge clk_i) begin
     if (reset_i | flush_all_i) begin
@@ -87,6 +90,7 @@ always @(posedge clk_i) begin
         reg_is_exc       <= is_exc_i;
         reg_exc_ecode    <= exc_ecode_i;
         reg_is_ertn      <= is_ertn_i;
+        reg_wb_vaddr     <= wb_vaddr_i;
     end
 end
 
@@ -130,6 +134,7 @@ assign dest_o         = reg_valid ? reg_dest : 5'd0;
 assign is_exc_o    = reg_is_exc;
 assign exc_ecode_o = reg_exc_ecode;
 assign is_ertn_o   = reg_is_ertn;
+assign wb_vaddr_o  = reg_wb_vaddr;
 
 assign mem_allowin_o = !reg_valid || (mem_ready_go && wb_allowin_i);
 assign mem_to_wb_valid_o = reg_valid && mem_ready_go;

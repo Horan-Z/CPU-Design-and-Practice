@@ -158,7 +158,6 @@ wire [ 5:0] op_31_26;
 wire [ 3:0] op_25_22;
 wire [ 1:0] op_21_20;
 wire [ 4:0] op_19_15;
-wire [ 4:0] op_14_10;
 wire [ 4:0] rd;
 wire [ 4:0] rj;
 wire [ 4:0] rk;
@@ -171,7 +170,6 @@ wire [63:0] op_31_26_d;
 wire [15:0] op_25_22_d;
 wire [ 3:0] op_21_20_d;
 wire [31:0] op_19_15_d;
-wire [31:0] op_14_10_d;
 
 wire        inst_add_w;
 wire        inst_sub_w;
@@ -248,7 +246,6 @@ assign op_31_26  = reg_inst[31:26];
 assign op_25_22  = reg_inst[25:22];
 assign op_21_20  = reg_inst[21:20];
 assign op_19_15  = reg_inst[19:15];
-assign op_14_10  = reg_inst[14:10];
 
 assign rd   = reg_inst[ 4: 0];
 assign rj   = reg_inst[ 9: 5];
@@ -523,7 +520,7 @@ assign br_target_o = br_target;
 assign is_exc_o    = has_int_i | reg_is_exc | inst_break | inst_syscall | ~inst_valid;
 assign exc_ecode_o = has_int_i  ? 6'h00         :
                      reg_is_exc ? reg_exc_ecode :
-                                | {6{inst_break  }} & 6'h0c
+                                  {6{inst_break  }} & 6'h0c
                                 | {6{inst_syscall}} & 6'h0b
                                 | {6{~inst_valid }} & 6'h0d;
 

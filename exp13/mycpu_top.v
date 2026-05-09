@@ -187,6 +187,7 @@ mycpu_ex u_ex(
     .is_exc_o          (ex_to_mem_is_exc      ),
     .exc_ecode_o       (ex_to_mem_exc_ecode   ),
     .is_ertn_o         (ex_to_mem_is_ertn     ),
+    .wb_vaddr_o        (ex_to_mem_wb_vaddr    ),
     .ex_not_ready_i    (id_to_ex_ex_not_ready ),
     .ex_not_ready_o    (ex_to_id_ex_not_ready ),
     .mem_ertn_i        (mem_to_wb_is_ertn     ),
@@ -217,6 +218,7 @@ wire        ex_to_mem_mem_sign_ext;
 wire        ex_to_mem_is_exc;
 wire [ 5:0] ex_to_mem_exc_ecode;
 wire        ex_to_mem_is_ertn;
+wire [31:0] ex_to_mem_wb_vaddr;
 wire        mem_allowin;
 wire        ex_to_mem_valid;
 
@@ -239,6 +241,7 @@ mycpu_mem u_mem(
     .is_exc_i          (ex_to_mem_is_exc      ),
     .exc_ecode_i       (ex_to_mem_exc_ecode   ),
     .is_ertn_i         (ex_to_mem_is_ertn     ),
+    .wb_vaddr_i        (ex_to_mem_wb_vaddr    ),
     .pc_o              (mem_to_wb_pc          ),
     .gr_we_o           (mem_to_wb_gr_we       ),
     .csr_we_o          (mem_to_wb_csr_we      ),
@@ -250,6 +253,7 @@ mycpu_mem u_mem(
     .is_exc_o          (mem_to_wb_is_exc      ),
     .exc_ecode_o       (mem_to_wb_exc_ecode   ),
     .is_ertn_o         (mem_to_wb_is_ertn     ),
+    .wb_vaddr_o        (mem_to_wb_wb_vaddr    ),
     .valid_i           (ex_to_mem_valid       ),
     .wb_allowin_i      (wb_allowin            ),
     .mem_allowin_o     (mem_allowin           ),
@@ -267,6 +271,7 @@ wire [31:0] mem_to_wb_csr_mask;
 wire        mem_to_wb_is_exc;
 wire [ 5:0] mem_to_wb_exc_ecode;
 wire        mem_to_wb_is_ertn;
+wire [31:0] mem_to_wb_wb_vaddr;
 wire        wb_allowin;
 wire        mem_to_wb_valid;
 wire [ 4:0] wb_dest;
@@ -287,6 +292,7 @@ mycpu_wb u_wb(
     .is_exc_i            (mem_to_wb_is_exc      ),
     .exc_ecode_i         (mem_to_wb_exc_ecode   ),
     .is_ertn_i           (mem_to_wb_is_ertn     ),
+    .wb_vaddr_i          (mem_to_wb_wb_vaddr    ),
     .rf_we_o             (rf_we                 ),
     .rf_waddr_o          (rf_waddr              ),
     .rf_wdata_o          (rf_wdata              ),
@@ -298,6 +304,7 @@ mycpu_wb u_wb(
     .wb_exc_o            (wb_exc                ),
     .wb_ecode_o          (wb_ecode              ),
     .wb_pc_o             (wb_pc                 ),
+    .wb_vaddr_o          (wb_vaddr              ),
     .ertn_flush_o        (ertn_flush            ),
     .flush_all_o         (flush_all             ),
     .debug_wb_pc_o       (debug_wb_pc           ),

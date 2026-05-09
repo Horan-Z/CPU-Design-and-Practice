@@ -16,6 +16,7 @@ module mycpu_wb(
     input  wire        is_exc_i,
     input  wire [ 5:0] exc_ecode_i,
     input  wire        is_ertn_i,
+    input  wire [31:0] wb_vaddr_i,
 
     // 写寄存器
     output wire        rf_we_o,
@@ -29,6 +30,7 @@ module mycpu_wb(
     output wire        wb_exc_o,
     output wire [ 5:0] wb_ecode_o,
     output wire [31:0] wb_pc_o,
+    output wire [31:0] wb_vaddr_o,
     output wire        ertn_flush_o,
     output wire        flush_all_o,
 
@@ -56,6 +58,7 @@ reg [ 4:0] reg_dest;
 reg        reg_is_exc;
 reg [ 5:0] reg_exc_ecode;
 reg        reg_is_ertn;
+reg [31:0] reg_wb_vaddr;
 
 always @(posedge clk_i) begin
     if (reset_i | flush_all_i) begin
@@ -81,10 +84,11 @@ always @(posedge clk_i) begin
         reg_is_exc       <= is_exc_i;
         reg_exc_ecode    <= exc_ecode_i;
         reg_is_ertn      <= is_ertn_i;
+        reg_wb_vaddr     <= wb_vaddr_i;
     end
 end
 
-assign rf_we_o    = reg_gr_we && reg_valid;
+assign rf_we_o    = reg_gr_we && reg_valid && !reg_is_exc;
 assign rf_waddr_o = reg_dest;
 assign rf_wdata_o = reg_write_result;
 
@@ -95,13 +99,14 @@ assign dest_o         = reg_valid ? reg_dest : 5'd0;
 
 // wb级流水不会触发异常
 // 因为csr_we_o同时也做ID阶段的阻塞控制信号，所以这里不判断是否valid的话就会死锁
-assign csr_we_o     = reg_csr_we && reg_valid;
+assign csr_we_o     = reg_csr_we && reg_valid && !reg_is_exc;
 assign csr_wnum_o   = reg_csr_wnum;
 assign csr_mask_o   = reg_csr_mask;
 assign csr_wvalue_o = reg_write_csr;
 assign wb_exc_o     = reg_is_exc & reg_valid;
 assign wb_ecode_o   = reg_exc_ecode;
 assign wb_pc_o      = reg_pc;
+assign wb_vaddr_o   = reg_wb_vaddr;
 assign ertn_flush_o = reg_is_ertn & reg_valid;
 assign flush_all_o  = (reg_is_exc | reg_is_ertn) & reg_valid;
 

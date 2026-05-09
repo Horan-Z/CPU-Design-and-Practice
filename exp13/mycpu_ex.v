@@ -42,6 +42,7 @@ module mycpu_ex(
     output wire        is_exc_o,
     output wire [ 5:0] exc_ecode_o,
     output wire        is_ertn_o,
+    output wire [31:0] wb_vaddr_o,
 
     // 流水线前递用
     // 标记ex阶段无法获得待写入的寄存器值
@@ -173,19 +174,21 @@ assign dest_o         = reg_valid ? reg_dest : 5'd0;
 assign mem_size_o = reg_mem_size;
 assign mem_sign_ext_o = reg_mem_sign_ext;
 
-// 当前课后实践阶段ex级流水不会触发异常
-assign ex_trigger_exc = 1'b0;
-assign ex_exc_ecode   = 6'd0;
-assign is_exc_o       = reg_is_exc | ex_trigger_exc;
-assign exc_ecode_o    = reg_is_exc ? reg_exc_ecode : ex_exc_ecode;
+assign memory_not_align = reg_mem_size[2] & alu_result[1:0] != 2'b00
+                        | reg_mem_size[1] & alu_result[0:0] != 1'b0;
+
+assign exc_ale        = reg_mem_en && memory_not_align;
+assign is_exc_o       = reg_is_exc | exc_ale;
+assign exc_ecode_o    = reg_is_exc ? reg_exc_ecode : {6{exc_ale}} & 6'h09;
 assign is_ertn_o      = reg_is_ertn;
+assign wb_vaddr_o     = alu_result;
 
 assign ex_not_ready_o = reg_ex_not_ready;
 
 assign ex_allowin_o = !reg_valid || (ex_ready_go && mem_allowin_i);
 assign ex_to_mem_valid_o = reg_valid && ex_ready_go;
 
-assign data_sram_en_o    = reg_mem_en & ex_to_mem_valid_o & mem_allowin_i;
+assign data_sram_en_o    = reg_mem_en & ex_to_mem_valid_o & mem_allowin_i & !exc_ale;
 
 wire [3:0] byte_we_mask;
 wire [3:0] half_we_mask;

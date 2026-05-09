@@ -38,7 +38,7 @@ wire        csr_crmd_da       = 1'b1;
 wire        csr_crmd_pg       = 1'b0;
 wire        csr_crmd_datf     = 2'b00;
 wire        csr_crmd_datm     = 2'b00;
-wire [31:0] csr_crmd_rvalue   = {23'd0, csr_crmd_datm, csr_crmd_datf, csr_crmd_pg, csr_crmd_da, csr_crmd_plv, csr_crmd_ie};
+wire [31:0] csr_crmd_rvalue   = {23'd0, csr_crmd_datm, csr_crmd_datf, csr_crmd_pg, csr_crmd_da, csr_crmd_ie, csr_crmd_plv};
 
 reg         csr_prmd_pie;
 reg  [ 1:0] csr_prmd_pplv;
