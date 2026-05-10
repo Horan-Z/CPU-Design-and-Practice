@@ -1,0 +1,62 @@
+module mycpu_preif(
+    input  wire        clk_i,
+    input  wire        reset_i,
+
+    // 输入
+    input  wire        br_taken_i,
+    input  wire [31:0] br_target_i,
+    input  wire        ertn_flush_i,
+    input  wire        flush_all_i,
+    input  wire [31:0] exc_entry_i,
+    input  wire [31:0] exc_rtn_addr_i,
+
+    // 给下一级的数据
+    output wire [31:0] pc_o,
+
+    // inst_ram读信号
+    output wire        inst_sram_en_o,
+    output wire [31:0] inst_sram_addr_o,
+
+    // 控制信号
+    input  wire        if_allowin_i,
+    output wire        pre_to_if_valid_o
+);
+
+wire        pre_ready_go = 1'b1;
+
+reg         reg_valid;
+reg  [31:0] pc;
+wire [31:0] seq_pc;
+wire [31:0] nextpc;
+
+assign seq_pc       = pc + 32'h4;
+
+// 如果br_taken，则当然要变为br_target
+// 如果没有br_taken，且if阶段阻塞中，那么需要保持当前pc，跟着if一起阻塞
+assign nextpc = ertn_flush_i ? exc_rtn_addr_i :
+                flush_all_i  ? exc_entry_i    :
+                br_taken_i   ? br_target_i    : 
+                if_allowin_i ? seq_pc         :
+                               pc             ;
+
+always @(posedge clk_i) begin
+    if (reset_i) begin
+        pc <= 32'h1bfffffc;     //trick: to make nextpc be 0x1c000000 during reset
+        reg_valid <= 1'b0;
+    end else begin
+        pc <= nextpc;
+        reg_valid <= 1'b1;
+    end
+end
+
+// 非对齐时取消读使能，但是不进行标记，因为preif不算流水线阶段
+assign nextpc_aligned   = (nextpc[1:0] == 2'b00);
+assign inst_sram_en_o   = ~reset_i & nextpc_aligned;
+assign inst_sram_addr_o = nextpc;
+assign pc_o             = pc;
+
+// 确认跳转的当前周期的pc还是上一周期的nextpc，即seq_pc
+// 需等一周期pc才会变成br_target_i
+assign pre_to_if_valid_o = pre_ready_go & !br_taken_i & reg_valid;
+
+endmodule
