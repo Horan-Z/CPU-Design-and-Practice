@@ -36,7 +36,7 @@ module mycpu_id(
     // 分支跳转
     output wire        br_taken_o,
     output wire [31:0] br_target_o,
-    output wire        br_taken_cancel_o,
+    output wire        br_stall_o,
 
     // 读寄存器
     output wire [ 4:0] rf_raddr1_o,
@@ -47,6 +47,7 @@ module mycpu_id(
     // 流水线前递用
     input  wire [ 4:0] ex_dest_i,
     input  wire [31:0] ex_write_reg_i,
+    input  wire        mem_waiting_i,
     input  wire [ 4:0] mem_dest_i,
     input  wire [31:0] mem_write_reg_i,
     input  wire [ 4:0] wb_dest_i,
@@ -99,8 +100,8 @@ assign     read_csr    = inst_csrrd | inst_csrwr | inst_csrxchg | inst_rdcntid;
 assign     csr_rd_o    = read_csr;
 
 assign     id_ready_go = ~( 
-    (read_en_1 && (rf_raddr1 != 5'd0) && ((rf_raddr1 == ex_dest_i) && ex_not_ready_i)) |
-    (read_en_2 && (rf_raddr2 != 5'd0) && ((rf_raddr2 == ex_dest_i) && ex_not_ready_i)) |
+    (read_en_1 && (rf_raddr1 != 5'd0) && (((rf_raddr1 == ex_dest_i) && ex_not_ready_i) || (rf_raddr1 == mem_dest_i && mem_waiting_i))) |
+    (read_en_2 && (rf_raddr2 != 5'd0) && (((rf_raddr2 == ex_dest_i) && ex_not_ready_i) || (rf_raddr2 == mem_dest_i && mem_waiting_i))) |
     (read_csr  && (    ex_csr_we_i    ||       mem_csr_we_i        ||  wb_csr_we_i  ))
 );
 
@@ -113,12 +114,10 @@ reg        reg_valid;
 always @(posedge clk_i) begin
     if (reset_i | flush_all_i) begin
         reg_valid <= 1'b0;
-    end else if(br_taken_cancel_o) begin
-        // 这里的意思是清空下一次到来的数据，而不是清空现在的数据
-        // 所以br_taken_cancel_o只有在当前周期数据成功发送到下一级流水的时候才可以为true
-        reg_valid <= 1'b0;
     end else if(id_allowin_o) begin
-        reg_valid <= valid_i;
+        // 如果在br_taken_pulse的瞬间刚好有指令来，则使其无效
+        // 如果在br_taken_pulse的瞬间没有指令来，则认为if阶段可以成功拦截，不需要执行操作
+        reg_valid <= valid_i & ~br_taken_pulse;
     end
 end
 
@@ -133,11 +132,19 @@ end
 
 wire        br_taken;
 wire [31:0] br_target;
+reg         br_taken_r;
+wire        br_taken_pulse = br_taken & ~br_taken_r;
 
-// br_taken_cancel_o必须在当前id数据传入下一层ex的时候才能为true
-// 如果因为任何原因，当前id处于阻塞中，那么br_taken_cancel_o不能为true
-// 否则，上方时序逻辑中的【else if(br_taken_cancel_o)】会触发，直接清空id层级
-assign br_taken_cancel_o = br_taken & id_to_ex_valid_o & ex_allowin_i;
+always @(posedge clk_i) begin
+    if (reset_i | flush_all_i) br_taken_r <= 1'b0;
+    else br_taken_r <= br_taken;
+end
+
+// 之前需要br_taken和br_taken_cancel两个信号是为了满足sram源源不断的取指需求
+// 所以取消信号需要是一个电平信号，只要还在取消中，就无脑丢弃后来的所有指令
+// 现在更换为总线后，取消信号需要变成一个脉冲信号
+// 只要触发一次取消脉冲，由preif和if阶段记录，它们会处理剩下的内容
+assign br_taken_o = br_taken_pulse;
 
 wire [11:0] alu_op;
 wire [ 2:0] mul_op;
@@ -259,9 +266,9 @@ assign i26  = {reg_inst[ 9: 0], reg_inst[25:10]};
 assign inst_rdcntid   = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h0] & op_19_15_d[5'h00] & rk == 5'h18 & rd == 5'h00;
 assign inst_rdcntvl_w = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h0] & op_19_15_d[5'h00] & rk == 5'h18 & rj == 5'h00;
 assign inst_rdcntvh_w = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h0] & op_19_15_d[5'h00] & rk == 5'h19 & rj == 5'h00;
-assign inst_csrwr  = op_31_26_d[6'h01] & rj == 5'd1;
-assign inst_csrrd  = op_31_26_d[6'h01] & rj == 5'd0;
-assign inst_csrxchg= op_31_26_d[6'h01] & (rj != 5'd0 && rj != 5'd1);
+assign inst_csrwr  = op_31_26_d[6'h01] & ~reg_inst[25] & ~reg_inst[24] & rj == 5'd1;
+assign inst_csrrd  = op_31_26_d[6'h01] & ~reg_inst[25] & ~reg_inst[24] & rj == 5'd0;
+assign inst_csrxchg= op_31_26_d[6'h01] & ~reg_inst[25] & ~reg_inst[24] & (rj != 5'd0 && rj != 5'd1);
 assign inst_ertn   = op_31_26_d[6'h01] & op_25_22_d[4'h9] & op_21_20_d[2'h0] & op_19_15_d[5'h10] & rk == 5'h0e;
 assign inst_break  = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h2] & op_19_15_d[5'h14];
 assign inst_syscall= op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h2] & op_19_15_d[5'h16];
@@ -502,19 +509,17 @@ assign br_taken = (   inst_beq  &&  rj_eq_rd
 // br_taken最后的条件从reg_valid改为了id_to_ex_valid_o
 // 因为当后方流水还没完成写入，还处于Read after Write竞争中时
 // rj_eq_rd是不准确的，如果不判定id_ready_go，就会导致前面流水收到错误的br_taken信息
-// 那么为什么不直接【id_to_ex_valid_o && ex_allowin_i】，然后让br_taken_cancel直接等于br_taken呢
-// 因为这样br_taken可以在阻塞的时候先于br_taken_cancel变为true，让前面流水提前拿到正确的pc
-// 节省一些cpu cycle
 
 assign br_target = (inst_beq | inst_bne | inst_bl | inst_b | inst_blt | inst_bltu | inst_bge | inst_bgeu) ? (reg_pc + br_offs) :
                                                                                               /*inst_jirl*/ (rj_value + jirl_offs);
+
+assign br_stall_o = (inst_beq | inst_bne | inst_bl | inst_b | inst_blt | inst_bltu | inst_bge | inst_bgeu | inst_jirl) & !id_ready_go & reg_valid;
 
 assign ex_src1_o = src1_is_pc  ? reg_pc[31:0] : rj_value;
 assign ex_src2_o = src2_is_imm ? imm : rkd_value;
 assign ex_op_o   = {rdcnt_op, div_op, mul_op, alu_op};
 
 assign rkd_value_o = rkd_value;
-assign br_taken_o  = br_taken;
 assign br_target_o = br_target;
 
 assign is_exc_o    = has_int_i | reg_is_exc | inst_break | inst_syscall | ~inst_valid;

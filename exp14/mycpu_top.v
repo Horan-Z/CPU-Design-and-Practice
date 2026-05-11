@@ -2,16 +2,24 @@ module mycpu_top(
     input  wire        clk,
     input  wire        resetn,
     // inst sram interface
-    output wire        inst_sram_en,
-    output wire [ 3:0] inst_sram_we,
+    output wire        inst_sram_req,
+    output wire        inst_sram_wr,
+    output wire [ 1:0] inst_sram_size,
+    output wire [ 3:0] inst_sram_wstrb,
     output wire [31:0] inst_sram_addr,
     output wire [31:0] inst_sram_wdata,
+    input  wire        inst_sram_addr_ok,
+    input  wire        inst_sram_data_ok,
     input  wire [31:0] inst_sram_rdata,
     // data sram interface
-    output wire        data_sram_en,
-    output wire [ 3:0] data_sram_we,
+    output wire        data_sram_req,
+    output wire        data_sram_wr,
+    output wire [ 1:0] data_sram_size,
+    output wire [ 3:0] data_sram_wstrb,
     output wire [31:0] data_sram_addr,
     output wire [31:0] data_sram_wdata,
+    input  wire        data_sram_addr_ok,
+    input  wire        data_sram_data_ok,
     input  wire [31:0] data_sram_rdata,
     // trace debug interface
     output wire [31:0] debug_wb_pc,
@@ -23,18 +31,27 @@ module mycpu_top(
 reg         reset;
 always @(posedge clk) reset <= ~resetn;
 
+assign inst_sram_wr    = 1'b0;       // 指令 SRAM 永远只读
+assign inst_sram_size  = 2'b10;      // 每次取指为 1 个字（4字节 = 32bit）
+assign inst_sram_wstrb = 4'b0000;    // 无写掩码
+assign inst_sram_wdata = 32'b0;      // 无写数据
+assign data_sram_wr = |data_sram_wstrb;
+assign data_sram_size  = 2'b10;
+
 mycpu_preif u_preif(
     .clk_i             (clk               ),
     .reset_i           (reset             ),
     .br_taken_i        (br_taken          ),
     .br_target_i       (br_target         ),
+    .br_stall_i        (br_stall          ),
     .ertn_flush_i      (ertn_flush        ),
     .flush_all_i       (flush_all         ),
     .exc_entry_i       (csr_eentry        ),
     .exc_rtn_addr_i    (csr_era           ),
     .pc_o              (pre_to_if_pc      ),
-    .inst_sram_en_o    (inst_sram_en      ),
+    .inst_sram_req_o   (inst_sram_req     ),
     .inst_sram_addr_o  (inst_sram_addr    ),
+    .inst_addr_ok_i    (inst_sram_addr_ok ),
     .if_allowin_i      (if_allowin        ),
     .pre_to_if_valid_o (pre_to_if_valid   )
 );
@@ -44,14 +61,16 @@ wire        pre_to_if_valid;
 wire [31:0] pre_to_if_pc;
 wire        br_taken;
 wire [31:0] br_target;
+wire        br_stall;
 
 mycpu_if u_if(
     .clk_i             (clk               ),
     .reset_i           (reset             ),
     .flush_all_i       (flush_all         ),
-    .br_taken_cancel_i (br_taken_cancel   ),
+    .br_taken_i        (br_taken          ),
     .pc_i              (pre_to_if_pc      ),
     .inst_sram_rdata_i (inst_sram_rdata   ),
+    .if_data_ok_i      (inst_sram_data_ok ),
     .inst_o            (if_to_id_inst     ),
     .pc_o              (if_to_id_pc       ),
     .is_exc_o          (if_to_id_is_exc   ),
@@ -66,7 +85,6 @@ wire [31:0] if_to_id_pc;
 wire [31:0] if_to_id_inst;
 wire        if_to_id_is_exc;
 wire [ 5:0] if_to_id_exc_code;
-wire        br_taken_cancel;
 wire        if_to_id_valid;
 wire        id_allowin;
 
@@ -100,13 +118,14 @@ mycpu_id u_id(
     .csr_num_o        (id_to_ex_csr_num      ),
     .br_taken_o       (br_taken              ),
     .br_target_o      (br_target             ),
-    .br_taken_cancel_o(br_taken_cancel       ),
+    .br_stall_o       (br_stall              ),
     .rf_raddr1_o      (rf_raddr1             ),
     .rf_rdata1_i      (rf_rdata1             ),
     .rf_raddr2_o      (rf_raddr2             ),
     .rf_rdata2_i      (rf_rdata2             ),
     .ex_dest_i        (ex_to_mem_dest        ),
     .ex_write_reg_i   (ex_to_mem_ex_result   ),
+    .mem_waiting_i    (mem_waiting           ),
     .mem_dest_i       (mem_to_wb_dest        ),
     .mem_write_reg_i  (mem_to_wb_write_result),
     .wb_dest_i        (wb_dest               ),
@@ -145,6 +164,7 @@ wire        id_to_ex_ex_not_ready;
 wire        ex_to_id_ex_not_ready;
 wire        ex_allowin;
 wire        id_to_ex_valid;
+wire        mem_waiting;
 
 mycpu_ex u_ex(
     .clk_i             (clk                   ),
@@ -181,6 +201,7 @@ mycpu_ex u_ex(
     .csr_mask_o        (ex_to_mem_csr_mask    ),
     .res_from_mem_o    (ex_to_mem_res_from_mem),
     .dest_o            (ex_to_mem_dest        ),
+    .mem_en_o          (ex_to_mem_mem_en      ),
     .ex_result_o       (ex_to_mem_ex_result   ),
     .mem_size_o        (ex_to_mem_mem_size    ),
     .mem_sign_ext_o    (ex_to_mem_mem_sign_ext),
@@ -198,9 +219,11 @@ mycpu_ex u_ex(
     .mem_allowin_i     (mem_allowin           ),
     .ex_allowin_o      (ex_allowin            ),
     .ex_to_mem_valid_o (ex_to_mem_valid       ),
-    .data_sram_en_o    (data_sram_en          ),
-    .data_sram_we_o    (data_sram_we          ),
+    .ex_pending_o      (ex_to_mem_ex_pending  ),
+    .data_sram_req_o   (data_sram_req         ),
+    .data_sram_wstrb_o (data_sram_wstrb       ),
     .data_sram_addr_o  (data_sram_addr        ),
+    .data_addr_ok_i    (data_sram_addr_ok     ),
     .data_sram_wdata_o (data_sram_wdata       )
 );
 
@@ -213,6 +236,7 @@ wire [31:0] ex_to_mem_csr_mask;
 wire        ex_to_mem_res_from_mem;
 wire [31:0] ex_to_mem_ex_result;
 wire [ 4:0] ex_to_mem_dest;
+wire        ex_to_mem_mem_en;
 wire [ 2:0] ex_to_mem_mem_size;
 wire        ex_to_mem_mem_sign_ext;
 wire        ex_to_mem_is_exc;
@@ -221,6 +245,7 @@ wire        ex_to_mem_is_ertn;
 wire [31:0] ex_to_mem_wb_vaddr;
 wire        mem_allowin;
 wire        ex_to_mem_valid;
+wire        ex_to_mem_ex_pending;
 
 mycpu_mem u_mem(
     .clk_i             (clk                   ),
@@ -235,7 +260,9 @@ mycpu_mem u_mem(
     .res_from_mem_i    (ex_to_mem_res_from_mem),
     .ex_result_i       (ex_to_mem_ex_result   ),
     .dest_i            (ex_to_mem_dest        ),
+    .mem_en_i          (ex_to_mem_mem_en      ),
     .data_sram_rdata_i (data_sram_rdata       ),
+    .data_data_ok_i    (data_sram_data_ok     ),
     .mem_size_i        (ex_to_mem_mem_size    ),
     .mem_sign_ext_i    (ex_to_mem_mem_sign_ext),
     .is_exc_i          (ex_to_mem_is_exc      ),
@@ -246,6 +273,7 @@ mycpu_mem u_mem(
     .gr_we_o           (mem_to_wb_gr_we       ),
     .csr_we_o          (mem_to_wb_csr_we      ),
     .csr_wnum_o        (mem_to_wb_csr_num     ),
+    .mem_waiting_o     (mem_waiting           ),
     .write_result_o    (mem_to_wb_write_result),
     .write_csr_o       (mem_to_wb_write_csr   ),
     .csr_mask_o        (mem_to_wb_csr_mask    ),
@@ -255,6 +283,7 @@ mycpu_mem u_mem(
     .is_ertn_o         (mem_to_wb_is_ertn     ),
     .wb_vaddr_o        (mem_to_wb_wb_vaddr    ),
     .valid_i           (ex_to_mem_valid       ),
+    .ex_pending_i      (ex_to_mem_ex_pending  ),
     .wb_allowin_i      (wb_allowin            ),
     .mem_allowin_o     (mem_allowin           ),
     .mem_to_wb_valid_o (mem_to_wb_valid       )

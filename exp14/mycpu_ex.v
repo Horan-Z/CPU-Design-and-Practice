@@ -36,6 +36,7 @@ module mycpu_ex(
     output wire [31:0] csr_mask_o,
     output wire        res_from_mem_o,
     output wire [ 4:0] dest_o,
+    output wire        mem_en_o,
     output wire [31:0] ex_result_o,
     output wire [ 2:0] mem_size_o,
     output wire        mem_sign_ext_o,
@@ -60,15 +61,23 @@ module mycpu_ex(
     input  wire        mem_allowin_i,
     output wire        ex_allowin_o,
     output wire        ex_to_mem_valid_o,
+    output wire        ex_pending_o,
 
     // data_ram读写信号
-    output wire        data_sram_en_o,
-    output wire [ 3:0] data_sram_we_o,
+    output wire        data_sram_req_o,
+    output wire [ 3:0] data_sram_wstrb_o,
     output wire [31:0] data_sram_addr_o,
+    input  wire        data_addr_ok_i,
     output wire [31:0] data_sram_wdata_o
 );
 
-wire ex_ready_go = (reg_div_op != 4'd0) ? (div_done | div_complete) : 1'b1;
+wire div_ready   = (reg_div_op == 4'd0) | div_done | div_complete;
+wire mem_ready   = !reg_mem_en | is_exc_o | (data_sram_req_o & data_addr_ok_i) | req_done;
+wire ex_ready_go = div_ready & mem_ready;
+
+// 辅助mem级决定cancel_cnt用
+// 用于判通知mem级，ex这边到底有没有正在总线上的访存操作
+assign ex_pending_o = reg_valid && reg_mem_en && !is_exc_o && (req_done | (data_sram_req_o & data_addr_ok_i));
 
 wire [31:0] alu_result;
 wire [31:0] mul_result;
@@ -154,6 +163,17 @@ always @(posedge clk_i) begin
     end
 end
 
+reg req_done;
+always @(posedge clk_i) begin
+    if (reset_i | flush_all_i) begin
+        req_done <= 1'b0;
+    end else if (ex_to_mem_valid_o & mem_allowin_i) begin
+        req_done <= 1'b0;
+    end else if (data_sram_req_o & data_addr_ok_i) begin
+        req_done <= 1'b1;
+    end
+end
+
 assign div_start = reg_valid && (reg_div_op != 4'd0) && !div_complete;
 
 // 中转信号
@@ -182,13 +202,14 @@ assign is_exc_o       = reg_is_exc | exc_ale;
 assign exc_ecode_o    = reg_is_exc ? reg_exc_ecode : {6{exc_ale}} & 6'h09;
 assign is_ertn_o      = reg_is_ertn;
 assign wb_vaddr_o     = alu_result;
+assign mem_en_o       = reg_mem_en;
 
 assign ex_not_ready_o = reg_ex_not_ready;
 
 assign ex_allowin_o = !reg_valid || (ex_ready_go && mem_allowin_i);
 assign ex_to_mem_valid_o = reg_valid && ex_ready_go;
 
-assign data_sram_en_o    = reg_mem_en & ex_to_mem_valid_o & mem_allowin_i & !exc_ale;
+assign data_sram_req_o   = ~reset_i & reg_mem_en & reg_valid & !is_exc_o & !req_done;
 
 wire [3:0] byte_we_mask;
 wire [3:0] half_we_mask;
@@ -198,13 +219,12 @@ assign byte_we_mask = ({4{alu_result[1:0] == 2'b00}} & 4'b0001) |
                       ({4{alu_result[1:0] == 2'b11}} & 4'b1000) ;
 assign half_we_mask = ({4{alu_result[1]   == 1'b0}}  & 4'b0011) |
                       ({4{alu_result[1]   == 1'b1}}  & 4'b1100) ;
-assign data_sram_we_o = {4{  reg_mem_we & ex_to_mem_valid_o & mem_allowin_i
-                           & ~(mem_is_exc_i | wb_is_exc_i | mem_ertn_i | wb_ertn_i)}} 
-                      & (
-                            ({4{reg_mem_size[0]}} & byte_we_mask) |
-                            ({4{reg_mem_size[1]}} & half_we_mask) |
-                            ({4{reg_mem_size[2]}} & 4'b1111)
-                        );
+assign data_sram_wstrb_o = {4{reg_valid & reg_mem_we & !is_exc_o & ~(mem_is_exc_i | wb_is_exc_i | mem_ertn_i | wb_ertn_i)}} 
+                         & (
+                               ({4{reg_mem_size[0]}} & byte_we_mask) |
+                               ({4{reg_mem_size[1]}} & half_we_mask) |
+                               ({4{reg_mem_size[2]}} & 4'b1111)
+                           );
 
 assign data_sram_addr_o  = {alu_result[31:2], 2'b00};
 assign data_sram_wdata_o = ({32{reg_mem_size[0]}} & {4{reg_rkd_value[ 7:0]}}) |
