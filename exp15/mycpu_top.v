@@ -2,27 +2,6 @@ module mycpu_top(
     input  wire        clk,
     input  wire        resetn,
 
-    // // inst sram interface
-    // output wire        inst_sram_req,
-    // output wire        inst_sram_wr,
-    // output wire [ 1:0] inst_sram_size,
-    // output wire [ 3:0] inst_sram_wstrb,
-    // output wire [31:0] inst_sram_addr,
-    // output wire [31:0] inst_sram_wdata,
-    // input  wire        inst_sram_addr_ok,
-    // input  wire        inst_sram_data_ok,
-    // input  wire [31:0] inst_sram_rdata,
-    // // data sram interface
-    // output wire        data_sram_req,
-    // output wire        data_sram_wr,
-    // output wire [ 1:0] data_sram_size,
-    // output wire [ 3:0] data_sram_wstrb,
-    // output wire [31:0] data_sram_addr,
-    // output wire [31:0] data_sram_wdata,
-    // input  wire        data_sram_addr_ok,
-    // input  wire        data_sram_data_ok,
-    // input  wire [31:0] data_sram_rdata,
-
     // 读请求通道
     output wire [ 3:0] arid,
     output wire [31:0] araddr,
@@ -79,12 +58,100 @@ module mycpu_top(
 reg         reset;
 always @(posedge clk) reset <= ~resetn;
 
+wire        inst_sram_req;
+wire        inst_sram_wr;
+wire [ 1:0] inst_sram_size;
+wire [ 3:0] inst_sram_wstrb;
+wire [31:0] inst_sram_addr;
+wire [31:0] inst_sram_wdata;
+wire        inst_sram_addr_ok;
+wire        inst_sram_data_ok;
+wire [31:0] inst_sram_rdata;
+
+wire        data_sram_req;
+wire        data_sram_wr;
+wire [ 1:0] data_sram_size;
+wire [ 3:0] data_sram_wstrb;
+wire [31:0] data_sram_addr;
+wire [31:0] data_sram_wdata;
+wire        data_sram_addr_ok;
+wire        data_sram_data_ok;
+wire [31:0] data_sram_rdata;
+
 assign inst_sram_wr    = 1'b0;       // 指令 SRAM 永远只读
 assign inst_sram_size  = 2'b10;      // 每次取指为 1 个字（4字节 = 32bit）
 assign inst_sram_wstrb = 4'b0000;    // 无写掩码
 assign inst_sram_wdata = 32'b0;      // 无写数据
 assign data_sram_wr = |data_sram_wstrb;
 assign data_sram_size  = 2'b10;
+
+sram_to_axi u_sram_to_axi (
+    .clk                (clk               ),
+    .resetn             (resetn            ),
+
+    // CPU 侧接口
+    .inst_sram_req      (inst_sram_req     ),
+    .inst_sram_wr       (inst_sram_wr      ),
+    .inst_sram_size     (inst_sram_size    ),
+    .inst_sram_wstrb    (inst_sram_wstrb   ),
+    .inst_sram_addr     (inst_sram_addr    ),
+    .inst_sram_wdata    (inst_sram_wdata   ),
+    .inst_sram_addr_ok  (inst_sram_addr_ok ),
+    .inst_sram_data_ok  (inst_sram_data_ok ),
+    .inst_sram_rdata    (inst_sram_rdata   ),
+
+    .data_sram_req      (data_sram_req     ),
+    .data_sram_wr       (data_sram_wr      ),
+    .data_sram_size     (data_sram_size    ),
+    .data_sram_wstrb    (data_sram_wstrb   ),
+    .data_sram_addr     (data_sram_addr    ),
+    .data_sram_wdata    (data_sram_wdata   ),
+    .data_sram_addr_ok  (data_sram_addr_ok ),
+    .data_sram_data_ok  (data_sram_data_ok ),
+    .data_sram_rdata    (data_sram_rdata   ),
+
+    // 总线侧接口
+    .arid               (arid              ),
+    .araddr             (araddr            ),
+    .arlen              (arlen             ),
+    .arsize             (arsize            ),
+    .arburst            (arburst           ),
+    .arlock             (arlock            ),
+    .arcache            (arcache           ),
+    .arprot             (arprot            ),
+    .arvalid            (arvalid           ),
+    .arready            (arready           ),
+
+    .rid                (rid               ),
+    .rdata              (rdata             ),
+    .rresp              (rresp             ),
+    .rlast              (rlast             ),
+    .rvalid             (rvalid            ),
+    .rready             (rready            ),
+
+    .awid               (awid              ),
+    .awaddr             (awaddr            ),
+    .awlen              (awlen             ),
+    .awsize             (awsize            ),
+    .awburst            (awburst           ),
+    .awlock             (awlock            ),
+    .awcache            (awcache           ),
+    .awprot             (awprot            ),
+    .awvalid            (awvalid           ),
+    .awready            (awready           ),
+
+    .wid                (wid               ),
+    .wdata              (wdata             ),
+    .wstrb              (wstrb             ),
+    .wlast              (wlast             ),
+    .wvalid             (wvalid            ),
+    .wready             (wready            ),
+
+    .bid                (bid               ),
+    .bresp              (bresp             ),
+    .bvalid             (bvalid            ),
+    .bready             (bready            )
+);
 
 mycpu_preif u_preif(
     .clk_i             (clk               ),
