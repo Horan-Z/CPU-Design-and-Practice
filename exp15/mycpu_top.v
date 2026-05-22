@@ -1,26 +1,74 @@
 module mycpu_top(
     input  wire        clk,
     input  wire        resetn,
-    // inst sram interface
-    output wire        inst_sram_req,
-    output wire        inst_sram_wr,
-    output wire [ 1:0] inst_sram_size,
-    output wire [ 3:0] inst_sram_wstrb,
-    output wire [31:0] inst_sram_addr,
-    output wire [31:0] inst_sram_wdata,
-    input  wire        inst_sram_addr_ok,
-    input  wire        inst_sram_data_ok,
-    input  wire [31:0] inst_sram_rdata,
-    // data sram interface
-    output wire        data_sram_req,
-    output wire        data_sram_wr,
-    output wire [ 1:0] data_sram_size,
-    output wire [ 3:0] data_sram_wstrb,
-    output wire [31:0] data_sram_addr,
-    output wire [31:0] data_sram_wdata,
-    input  wire        data_sram_addr_ok,
-    input  wire        data_sram_data_ok,
-    input  wire [31:0] data_sram_rdata,
+
+    // // inst sram interface
+    // output wire        inst_sram_req,
+    // output wire        inst_sram_wr,
+    // output wire [ 1:0] inst_sram_size,
+    // output wire [ 3:0] inst_sram_wstrb,
+    // output wire [31:0] inst_sram_addr,
+    // output wire [31:0] inst_sram_wdata,
+    // input  wire        inst_sram_addr_ok,
+    // input  wire        inst_sram_data_ok,
+    // input  wire [31:0] inst_sram_rdata,
+    // // data sram interface
+    // output wire        data_sram_req,
+    // output wire        data_sram_wr,
+    // output wire [ 1:0] data_sram_size,
+    // output wire [ 3:0] data_sram_wstrb,
+    // output wire [31:0] data_sram_addr,
+    // output wire [31:0] data_sram_wdata,
+    // input  wire        data_sram_addr_ok,
+    // input  wire        data_sram_data_ok,
+    // input  wire [31:0] data_sram_rdata,
+
+    // 读请求通道
+    output wire [ 3:0] arid,
+    output wire [31:0] araddr,
+    output wire [ 7:0] arlen,
+    output wire [ 2:0] arsize,
+    output wire [ 1:0] arburst,
+    output wire [ 1:0] arlock,
+    output wire [ 3:0] arcache,
+    output wire [ 2:0] arprot,
+    output wire        arvalid,
+    input  wire        arready,
+
+    // 读响应通道
+    output wire [ 3:0] rid,
+    output wire [31:0] rdata,
+    output wire [ 1:0] rresp,
+    output wire        rlast,
+    output wire        rvalid,
+    input  wire        rready,
+
+    // 写请求通道
+    output wire [ 3:0] awid,
+    output wire [31:0] awaddr,
+    output wire [ 7:0] awlen,
+    output wire [ 2:0] awsize,
+    output wire [ 1:0] awburst,
+    output wire [ 1:0] awlock,
+    output wire [ 3:0] awcache,
+    output wire [ 2:0] awprot,
+    output wire        awvalid,
+    input  wire        awready,
+
+    // 写数据通道
+    output wire [ 3:0] wid,
+    output wire [31:0] wdata,
+    output wire [ 3:0] wstrb,
+    output wire        wlast,
+    output wire        wvalid,
+    input  wire        wready,
+
+    // 写响应通道
+    input  wire [ 3:0] bid,
+    input  wire [ 1:0] bresp,
+    input  wire        bvalid,
+    output wire        bready,
+
     // trace debug interface
     output wire [31:0] debug_wb_pc,
     output wire [ 3:0] debug_wb_rf_we,
