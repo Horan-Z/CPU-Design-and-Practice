@@ -36,12 +36,12 @@ module mycpu_top(
     input  wire        arready,
 
     // 读响应通道
-    output wire [ 3:0] rid,
-    output wire [31:0] rdata,
-    output wire [ 1:0] rresp,
-    output wire        rlast,
-    output wire        rvalid,
-    input  wire        rready,
+    input  wire [ 3:0] rid,
+    input  wire [31:0] rdata,
+    input  wire [ 1:0] rresp,
+    input  wire        rlast,
+    input  wire        rvalid,
+    output wire        rready,
 
     // 写请求通道
     output wire [ 3:0] awid,
