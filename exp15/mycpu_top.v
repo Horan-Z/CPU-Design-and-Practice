@@ -1,6 +1,6 @@
 module mycpu_top(
-    input  wire        clk,
-    input  wire        resetn,
+    input  wire        aclk,
+    input  wire        aresetn,
 
     // 读请求通道
     output wire [ 3:0] arid,
@@ -55,6 +55,9 @@ module mycpu_top(
     output wire [31:0] debug_wb_rf_wdata
 );
 
+assign clk    = aclk;
+assign resetn = aresetn; 
+
 reg         reset;
 always @(posedge clk) reset <= ~resetn;
 
@@ -82,7 +85,7 @@ assign inst_sram_wr    = 1'b0;       // 指令 SRAM 永远只读
 assign inst_sram_size  = 2'b10;      // 每次取指为 1 个字（4字节 = 32bit）
 assign inst_sram_wstrb = 4'b0000;    // 无写掩码
 assign inst_sram_wdata = 32'b0;      // 无写数据
-assign data_sram_wr = |data_sram_wstrb;
+assign data_sram_wr    = |data_sram_wstrb;
 assign data_sram_size  = 2'b10;
 
 sram_to_axi u_sram_to_axi (
