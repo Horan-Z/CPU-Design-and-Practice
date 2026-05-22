@@ -116,14 +116,15 @@ always @(posedge clk) begin
     end else begin
         case (read_state)
             R_IDLE: begin
-                // Data Read 优先级高于 Inst Read，防止 Load 阻塞流水线
-                if (rd_req_data && (write_state == W_IDLE)) begin // 修改此处：增加互斥条件
+                // Data Read 优先级高
+                if (rd_req_data && (write_state == W_IDLE)) begin 
                     read_state <= R_AR;
                     read_type  <= 1'b1;
                     araddr_reg <= data_sram_addr;
                     arsize_reg <= {1'b0, data_sram_size};
                     arid_reg   <= 4'd1;
-                end else if (rd_req_inst) begin
+                // 修改此处：只有当没有 Data 读请求时，才允许吃进 Inst 读请求
+                end else if (rd_req_inst && !rd_req_data) begin 
                     read_state <= R_AR;
                     read_type  <= 1'b0;
                     araddr_reg <= inst_sram_addr;
